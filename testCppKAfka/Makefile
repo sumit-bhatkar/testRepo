@@ -3,7 +3,8 @@ HOME          = /home/roamware/kafka/testCppSource
 THISDIR       = $(HOME)/testRepo/testCppKAfka
 MAKEDIR       = $(HOME)/obj
 BUILDDIR      = $(HOME)/bin
-MAIN          = $(BUILDDIR)/testKafkaProducer
+MAINP         = $(BUILDDIR)/testKafkaProducer
+MAINC         = $(BUILDDIR)/testKafkaConsumer
 			     
 RDKAFKAINC    = -I/usr/include/librdkafka
 
@@ -19,7 +20,7 @@ FILES = $(wildcard $(THISDIR)/*.cpp)
 
 DIRS = $(MAKEDIR) $(BUILDDIR) 
 
-all: $(DIRS) $(MAIN) 
+all: $(DIRS) $(MAINP) $(MAINC) 
 
 $(MAKEDIR):
 	mkdir -p $(MAKEDIR) 
@@ -30,6 +31,12 @@ $(BUILDDIR):
 $(MAIN): 
 	$(CPP) $(CFLAGS) $(FILES) $(RDKAFKAINC) -o $(MAIN) $(LIBRDKAFKA)
 
+$(MAINP): 
+	$(CPP) $(CFLAGS) $(THISDIR)/CTestKafkaProducer.cpp $(RDKAFKAINC) -o $(MAINP) $(LIBRDKAFKA)
+
+$(MAINC): 
+	$(CPP) $(CFLAGS) $(THISDIR)/CTestKfakaConsumer.cpp $(RDKAFKAINC) -o $(MAINC) $(LIBRDKAFKA)	
+
 clean:
-	rm -rf $(MAKEDIR) $(MAIN) 
+	rm -rf $(MAKEDIR) $(MAINP) $(MAINC)
 

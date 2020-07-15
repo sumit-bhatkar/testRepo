@@ -17,7 +17,7 @@
  */
 #include "rdkafkacpp.h"
 
-#define PRODUCE_MSG_CNT 1000000
+#define PRODUCE_MSG_CNT 10
 #define MESSAGE_PREFIX "The message to be sent "
 #define NUM_PARTITIONS 10
 #define NUM_THREADS 10
