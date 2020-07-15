@@ -32,7 +32,7 @@ public class TestArrayList {
 		System.out.println("=============Sorted For===========");  
 
 		for (int i = 0;i <al.size();i++) {
-			System.out.println("item - " + i + "  " + al.get(i));  
+			System.out.println("item : " + i + "  " + al.get(i));  
 		}
 		
 //		for (String s:al) {
