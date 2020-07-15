@@ -5,7 +5,7 @@
 #include <csignal>
 #include <cstring>
 #include <ctime>
-
+#include <thread>
 
 #if _AIX
 #include <unistd.h>
@@ -17,9 +17,11 @@
  */
 #include "rdkafkacpp.h"
 
-#define PRODUCE_MSG_CNT 10000
-#define MESSAGE_PREFIX "The message to be sent to someone"
+#define PRODUCE_MSG_CNT 1000000
+#define MESSAGE_PREFIX "The message to be sent "
 #define NUM_PARTITIONS 10
+#define NUM_THREADS 10
+#define QUE_BUFF_MAX_MSG_SIZE  "1000000"
 
 
 static volatile sig_atomic_t run = 1;
@@ -126,7 +128,7 @@ RdKafka::ErrorCode produce_msg (RdKafka::Producer *producer, std::string topic, 
 	return RdKafka::ERR_NO_ERROR;
 }
 
-void run_producer()
+void run_producer(int thrNum)
 {
 	/*
 	 * Create configuration object
@@ -145,7 +147,7 @@ void run_producer()
 		exit(1);
 	}
 	
-	std::string qsize = "100000";
+	std::string qsize = QUE_BUFF_MAX_MSG_SIZE;
 	if (conf->set("queue.buffering.max.messages", qsize, errstr) != RdKafka::Conf::CONF_OK) 
 	{
 		std::cerr << errstr << std::endl;
@@ -186,7 +188,7 @@ void run_producer()
 	char line[200];
 	for (int i=0; run && i<PRODUCE_MSG_CNT; i++) 
 	{
-		int len = sprintf (line , "%s - %d",MESSAGE_PREFIX,i);
+		int len = sprintf (line , "%s - %d - %d",MESSAGE_PREFIX,thrNum,i);
 		
 		int parition = i % NUM_PARTITIONS; // there are 10 paritions
 		RdKafka::ErrorCode err = produce_msg(producer, topic, parition, line, len);
@@ -224,22 +226,35 @@ void run_producer()
 
 int main (int argc, char **argv) {
 
-  if (argc != 3) {
-    std::cerr << "Usage: " << argv[0] << " <brokers> <topic>\n";
-    exit(1);
-  }
+	if (argc != 3) 
+	{
+		std::cerr << "Usage: " << argv[0] << " <brokers> <topic>\n";
+		exit(1);
+	}
 
-  brokers = argv[1];
-  topic = argv[2];
+	brokers = argv[1];
+	topic = argv[2];
 
-  signal(SIGINT, sigterm);
-  signal(SIGTERM, sigterm);
-  
-  Timer tmr;
-  run_producer();
+	signal(SIGINT, sigterm);
+	signal(SIGTERM, sigterm);
 
-  double t = tmr.elapsed();
-  std::cout << "10M records : single thread prod / 10 partition :: " << t << " msec"<< std::endl;
+	std::thread *threadsArr[NUM_THREADS]; 
 
-  return 0;
+	Timer tmr;
+	for (int i=0; i < NUM_THREADS; i++)
+	{
+		threadsArr[i] = new std::thread(run_producer,i);
+	}
+	
+	for (int i=0; i < NUM_THREADS; i++)
+	{
+		threadsArr[i]->join();
+	}
+	
+	//run_producer();
+
+	double t = tmr.elapsed();
+	std::cout << "10M records : " << NUM_THREADS << " threads prod / 10 partition :: " << t << " msec"<< std::endl;
+
+	return 0;
 }

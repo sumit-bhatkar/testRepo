@@ -11,6 +11,7 @@ LIBRDKAFKA    = -L/usr/lib64/ -lrdkafka++
 
 
 DFLAGS = -DPRODUCT_VERSION=\"1.0\" 
+CFLAGS = -std=c++11
 
 #OBJS =  $(patsubst $(THISDIR)/%.cpp,$(MAKEDIR)/%.o,$(wildcard $(THISDIR)/*.cpp))
 
@@ -27,7 +28,7 @@ $(BUILDDIR):
 	mkdir -p $(BUILDDIR) 	
 	
 $(MAIN): 
-	$(CPP) $(FILES) $(RDKAFKAINC) -o $(MAIN) $(LIBRDKAFKA)
+	$(CPP) $(CFLAGS) $(FILES) $(RDKAFKAINC) -o $(MAIN) $(LIBRDKAFKA)
 
 clean:
 	rm -rf $(MAKEDIR) $(MAIN) 
