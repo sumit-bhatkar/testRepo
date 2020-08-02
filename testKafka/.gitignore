@@ -1,0 +1,8 @@
+/App.class
+/ConsumerCreator.class
+/CustomObjectDeserializer.class
+/CustomSerializer.class
+/IKafkaConstants.class
+/ProducerCreator.class
+/RecordCreator.class
+/TestCustomPartitioner.class
