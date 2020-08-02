@@ -3,8 +3,9 @@ import numpy as np
 from pandas_datareader import data as web
 import matplotlib.pyplot as plt
 from pip._vendor.requests.api import head
+import json
 
-def get_stock(stock,start,end):
+def get_close(stock,start,end):
  return web.DataReader(stock,'yahoo',start,end)['Close']
 
 def get_high(stock,start,end):
@@ -12,26 +13,43 @@ def get_high(stock,start,end):
 
 def get_low(stock,start,end):
  tmp = web.DataReader(stock,'yahoo',start,end)['Low']
- print (tmp)
  return tmp
 
-def STOK(close, low, high, n): 
- STOK = ((close - low.rolling(n).min() / (high.rolling(n).max() - low.rolling(n).min()) )) * 100
- return STOK
+# def STOK(close, low, high, n):
+#  STOK = ((close - low.rolling(n).min() / (high.rolling(n).max() - low.rolling(n).min()) )) * 100
+#  return STOK
+# 
+# def STOD(close, low, high, n):
+#  STOK = ((close - low.rolling(n).min() / (high.rolling(n).max() - low.rolling(n).min()) )) * 100
+#  STOD = STOK.rolling(3).mean()
+#  return STOD
 
-def STOD(close, low, high, n):
- STOK = ((close - low.rolling(n).min() / (high.rolling(n).max() - low.rolling(n).min()) )) * 100
- STOD = STOK.rolling(3).mean()
- return STOD
+close = get_close('FB', '7/1/2020', '7/30/2020')
+high = get_high('FB', '7/1/2020', '7/30/2020')
+low = get_low('FB', '7/1/2020', '7/30/2020')
+maxHigh = high.rolling(14).max()
+minLow = low.rolling(14).min()
+diff = maxHigh - minLow
+stock = (close - minLow) / (diff) *100
 
-df = pd.DataFrame(get_stock('FB', '7/1/2020', '7/1/2020'))
-df['High'] = get_high('FB', '7/1/2020', '7/30/2020')
-df['Low'] = get_low('FB', '7/1/2020', '7/30/2020')
-df['%K'] = STOK(df['Close'], df['Low'], df['High'], 14)
-df['%D'] = STOD(df['Close'], df['Low'], df['High'], 14)
+df = pd.DataFrame()
+df['Close'] = close
+df['Min'] = minLow
+df['diff'] = diff
+df['%K'] = stock
+print (df)
+df['%K'].plot()
 df.tail()
+plt.show()
 
-print (df['%K']) 
+
+# df['High'] = get_high('FB', '7/1/2020', '7/30/2020')
+# df['Low'] = get_low('FB', '7/1/2020', '7/30/2020')
+# df['%K'] = STOK(df['Close'], df['Low'], df['High'], 14)
+# df['%D'] = STOD(df['Close'], df['Low'], df['High'], 14)
+# df.tail()
+
+#print (df['Low']) 
 # df['%K'].plot()
 # plt.show()
 
