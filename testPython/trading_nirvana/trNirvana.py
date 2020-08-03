@@ -3,60 +3,67 @@
 
 NSE data plotting
 """
-import nirvanaUtils as u
+import nirvanaUtils as nv
 import json
-import matplotlib.pyplot as plt
-from nsepy import get_history
-from datetime import datetime
-import dateutil.relativedelta
+import numpy as np
 import pandas as pd
-from pandas._libs.tslib import format_array_from_datetime
-from pip._internal import index
+from datetime import datetime as dt
+#import matplotlib.pyplot as plt
+# from nsepy import get_history
 
-def get_data(symbol):
-    print("----------------------------------------------------------")
-    #plt.style.use('fivethirtyeight')
-    from_date = datetime.strptime ('2020-07-10','%Y-%m-%d')
-    to_date = datetime.strptime ('2020-08-01','%Y-%m-%d')
-    from_date,to_date = u.get_time()
-    print(from_date , "   " ,to_date)
-    print("----------------------------------------------------------")
-    
-    #data=get_history(symbol='SBIN',start=from_date,end=to_date)
-    data=get_history(symbol=symbol,start=from_date,end=to_date)
-    
-    #doc = data.to_json()
-    #doc = data.iloc[0:5].to_json()
-    #con = pd.read_json(doc,orient='columns' )
-    #print(con)
-    return data
+def fetch_data_from_site():
+    symbol_data = nv.get_data('SBIN','2020-07-01','2020-08-01')
+    nv.persist_to_store(symbol_data,'store/temp.txt')
 
-def read_store ():
-    print ("Reading from file")
-    with open('store/data.txt') as json_file:
-        json_data = json.load(json_file)
-        
-    data_frame = pd.read_json(json_data,orient='columns' )
-    return data_frame
-    
-def persist_to_store (data_frame):
-    json_data = data_frame.to_json()
-    with open('store/data.txt', 'w') as outfile:
-        json.dump(json_data, outfile)
-    print("Saved to file")
-    print("----------------------------------------------------------")
+def filter_and_store(df):
+    df = df[['Open','High','Low','Close']]
+    nv.persist_to_store(df,'store/temp.txt')
 
-#sb = get_data('SBIN')
-sb = read_store()
-print(sb)
+def populate_rsi(df, period=14):
+    #change = df['HA_Close'].diff()
+    change = df.diff()
+    gain, loss = change.copy(), change.copy()
+    gain[gain < 0] = 0
+    loss[loss > 0] = 0
+    avg_gain = gain.rolling(period).ewm(alpha=0.5).mean()
+    print (avg_gain)
+    avg_loss = loss.rolling(period).mean().abs()
+    rsi = avg_gain / avg_loss
+    rsi = 100 - 100/(1+(rsi))
+    return rsi
+
 print("----------------------------------------------------------")
-#sb = sb.drop(sb.index[0])
-#persist_to_store(sb)
+symbol_data = nv.read_store('store/temp.txt')
+#symbol_data['Date']=pd.to_datetime(symbol_data['index'], unit='ms').dt.strftime('%Y-%m-%d')
+# print("----------------------------------------------------------")
+# 
+# nv.populate_heikin_ashi (symbol_data)
+symbol_data["RSI"] = populate_rsi(symbol_data["Close"])
+# symbol_data["HA_RSI"] = nv.populate_rsi(symbol_data["HA_Close"])
+# symbol_data['Date']=pd.to_datetime(symbol_data['index'], unit='ms').dt.strftime('%Y-%m-%d')
+# 
+# #symbol_data["RSI"] = nv.populate_rsi(symbol_data["Close"])
+# 
+# #nv.persist_to_store(symbol_data,'store/temp.txt')
+print(symbol_data[["Close","RSI"]]) 
+# print (symbol_data.loc[50:,["Date","RSI"]]  ) 
+# nv.persist_csv_to_store(symbol_data,'store/temp_csv.txt') 
 
-today = get_data('SBIN')
-final = pd.concat ([sb,today[-3:-1]])
-final = pd.concat ([final,today[-3:-1]])
 
-
-print(final)
+#print (symbol_data[['Date','Open','High','Low','Close']])
+    
 print("----------------------------------------------------------")
+            
+# symbol_data = u.read_store()
+# print(symbol_data)
+#symbol_data = symbol_data.drop(symbol_data.index[0])
+#nv.persist_to_store(symbol_data)
+# today = u.get_data('SBIN')
+# final = pd.concat ([symbol_data,today[-3:-1]])
+# final = pd.concat ([final,today[-3:-1]])
+# print(final)
+
+# nv.populate_heikin_ashi (symbol_data)
+# symbol_data["RSI"] = populate_HA_rsi(symbol_data["Close"])
+# symbol_data["HA_RSI"] = populate_HA_rsi(symbol_data["HA_Close"])
+# print("----------------------------------------------------------")
