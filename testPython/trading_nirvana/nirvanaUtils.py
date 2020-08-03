@@ -80,9 +80,9 @@ def populate_heikin_ashi(df):
     df['HA_Low']=df[['HA_Open','HA_Close','Low']].min(axis=1)
     return df
 
-def populate_rsi(df, period=14):
-    #change = df['HA_Close'].diff()
-    change = df.diff()
+def get_rsi(series, period=14):
+    #change = series['HA_Close'].diff()
+    change = series.diff()
     gain, loss = change.copy(), change.copy()
     gain[gain < 0] = 0
     loss[loss > 0] = 0
@@ -92,6 +92,36 @@ def populate_rsi(df, period=14):
     rsi = 100 - 100/(1+(rsi))
     return rsi
 
+def get_ema_for_rsi(series,period=14,init_val=0):
+    idx = series.index.name
+    ema = pd.Series([],dtype='float64')
+    for i in range(0, len(series)):
+        if i == 0:
+            ema.at[i] = init_val
+        else:
+            ema.at[i] = ((ema.at[i-1]*(period-1)) + series.at[i])/period
+#     print(ema)
+    return ema
+
+def get_exp_rsi(series, period=14):
+    #change = series['HA_Close'].diff()
+    change = series.diff()
+    gain, loss = change.copy(), change.copy()
+    gain[gain < 0] = 0
+    loss[loss > 0] = 0
+    avg_gain = get_ema_for_rsi(gain,period,1.63)  # this is temp val given to SBIN
+    avg_loss = get_ema_for_rsi(loss.abs(),period,2.98)
+    rsi = avg_gain / avg_loss
+    rsi = 100 - 100/(1+(rsi))
+#     print(rsi)
+    return rsi
+
+def get_stoch_rsi(series, K=3, D=3, period=14):
+    min = series.rolling(period).min()
+    max = series.rolling(period).max()
+    stoch_rsi_k = ((series - min)/(max-min)).rolling(K).mean()*100
+    stoch_rsi_d = stoch_rsi_k.rolling(D).mean()
+    return stoch_rsi_k, stoch_rsi_d
 
 '''
 This is etc stuff 
