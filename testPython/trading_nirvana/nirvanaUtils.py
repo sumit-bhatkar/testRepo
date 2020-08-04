@@ -1,48 +1,25 @@
 from datetime import datetime, date, timedelta
 import json
-#import matplotlib.pyplot as plt
 from nsepy import get_history
 import dateutil.relativedelta
 import pandas as pd
-#from pandas._libs.tslib import format_array_from_datetime
 from pip._internal import index
 import csv
 import requests
-
-
-#print(data['High'])
-#data['Close'].plot()
-#data['High'].plot()
-#data['Low'].plot()
-#data['%K'].plot()
-# print(data['High'], data['%K'])
-#plt.show()
-def get_time():
-    to_date=datetime.now()
-    to_date=datetime.strftime(to_date,'%Y,%m,%d')
-    to_date=datetime.strptime(to_date,'%Y,%m,%d')
-    from_date=to_date-dateutil.relativedelta.relativedelta(month=6)
-    #from_date=to_date-dateutil.relativedelta.relativedelta(day=10)
-    return from_date,to_date
 
 def getBhavdata():
     url ="https://archives.nseindia.com/products/content/sec_bhavdata_full_02062020.csv"
     return pd.read_csv(url)
 
-def get_data(symbol, from_date , to_date):
+def get_data(symbol, from_date = '2016-01-01' ):
     print("----------------------------------------------------------")
-    #plt.style.use('fivethirtyeight')
     from_date = datetime.strptime (from_date,'%Y-%m-%d')
-    to_date = datetime.strptime (to_date,'%Y-%m-%d')
+    to_date = date.today()
     print("Fetching data from {} to {}".format(from_date,to_date))
-    #data=get_history(symbol='SBIN',start=from_date,end=to_date)
-    data=get_history(symbol=symbol,start=from_date,end=to_date)
+    data=get_history(symbol=symbol,start=from_date.date(),end=to_date)
     data.reset_index(inplace=True)
     print("Data Fetched")
-    #doc = data.to_json()
-    #doc = data.iloc[0:5].to_json()
-    #con = pd.read_json(doc,orient='columns' )
-    #print(con)
+    print("----------------------------------------------------------")
     return data
 
 def read_store (store_path='store/data.txt'):
@@ -102,6 +79,18 @@ def get_rsi(series, period=14):
     rsi = 100 - 100/(1+(rsi))
     return rsi
 
+def get_td_ema (series,period=14,init_val=0):
+    idx = series.index.name
+    ema = pd.Series([],dtype='float64')
+    alpha = 2 / (period + 1)
+    for i in range(0, len(series)):
+        if i == 0:
+            ema.at[i] = init_val
+        else:
+            ema.at[i] = alpha * series.at[i] + (1 - alpha) * ema[i-1]
+    return ema
+    
+    
 def get_ema_for_rsi(series,period=14,init_val=0):
     idx = series.index.name
     ema = pd.Series([],dtype='float64')

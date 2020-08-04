@@ -12,17 +12,17 @@ from datetime import datetime, date, timedelta
 import dateutil.relativedelta
 from nsepy import get_history
 
+STOCK_RSI_FLAT_PERIOD = 6
+STOCK_RSI_MAX_STD = 6
+LOWEST_LOW_PERIOD = 90
+MAX_CURR_LOW_DIFF = 50
+symbol = 'CAPLIPOINT' 
+#SBIN
 
-#import matplotlib.pyplot as plt
-# from nsepy import get_history
 
-def fetch_data_from_site():
-    symbol_data = nv.get_data('SBIN','2020-01-01','2020-07-25')
+def fetch_data_from_site(symbol):
+    symbol_data = nv.get_data(symbol)
     nv.persist_to_store(symbol_data,'store/temp.txt')
-
-def filter_and_store(df):
-    df = df[['Open','High','Low','Close']]
-    nv.persist_to_store(df,'store/temp.txt')
 
 def create_baseline():
     print("----------------------------------------------------------")
@@ -30,72 +30,69 @@ def create_baseline():
     nv.populate_heikin_ashi (symbol_data)
     symbol_data["HA_RSI"] = nv.get_exp_rsi(symbol_data["HA_Close"])
     symbol_data["Stoch_rsi_K"] , symbol_data["Stoch_rsi_D"] = nv.get_stoch_rsi(symbol_data["HA_RSI"],3,3,14)
+    symbol_data['ema200'] = nv.get_td_ema(symbol_data['Close'],200)
+    symbol_data['ema50'] = nv.get_td_ema(symbol_data['Close'],50)
     nv.persist_to_store(symbol_data,'store/temp.txt')
-    print(symbol_data)
 
-def update_records_till_today(symbol_data):
-    today = date.today()
-    start_day = (symbol_data['Date'].tail(1).item()) + timedelta(days = 1)
-    data = get_history(symbol='SBIN',start=start_day.date(),end=today)
-    data.reset_index(inplace=True)
-    data = data.astype({'Date': 'datetime64[ns]'})
-    length = len(data)
-#     symbol_data = symbol_data.append(data,ignore_index=True)
-#     print(data)
-    return data, length
+def validate_stoch_rsi(symbol_data):
+    data = symbol_data.tail(STOCK_RSI_FLAT_PERIOD + 1)
+    data['delta'] = (data["Stoch_rsi_K"] - data["Stoch_rsi_D"]).abs()
+    data['diff'] = (data["Stoch_rsi_K"].diff()).abs()
+    
+#     print (data['delta'].var())
+#     print (data['delta'].std())
+    return data['delta'].std().item() < STOCK_RSI_MAX_STD
+
+def validate_ema_200_50(symbol_data):
+    return True
+
+def validate_curr_low(symbol_data):
+    cur_low = symbol_data['Low'].iloc[-1]
+    lowest_low = symbol_data.loc[LOWEST_LOW_PERIOD:,["Low"]].min()
+    print(cur_low - lowest_low.item())
+    return (cur_low - lowest_low.item()) < MAX_CURR_LOW_DIFF
 
 def work_on_data():
     print("----------------------------------------------------------")
     symbol_data = nv.read_store('store/temp.txt')
-    data, num_delta_records = update_records_till_today(symbol_data)
-    symbol_data = symbol_data.append(data,ignore_index=True)
-    symbol_data = nv.populate_heikin_ashi(symbol_data,num_delta_records)
-    symbol_data["HA_RSI"] = nv.get_exp_rsi(symbol_data["HA_Close"])
-    symbol_data["Stoch_rsi_K"] , symbol_data["Stoch_rsi_D"] = nv.get_stoch_rsi(symbol_data["HA_RSI"],3,3,14)
-      
     
     
+    
+    stoch_ris_passed = validate_stoch_rsi(symbol_data)
+    ema_200_50_passed = validate_ema_200_50(symbol_data)
+    curr_low_passed = validate_curr_low(symbol_data)
+
     print(symbol_data)
-#     # symbol_data = nv.read_store('store/SBIN_store_20200504-20200731.txt')
-#     # print("----------------------------------------------------------")
-#     data, num_delta_records = update_records_till_today(symbol_data)
-#     print(data)
-#     
-#     # symbol_data = symbol_data.drop ([143,144,145,146])
-#     symbol_data = symbol_data.append(data,ignore_index=True)
-#     symbol_data = nv.populate_heikin_ashi(symbol_data,num_delta_records)
-#     symbol_data["HA_RSI"] = nv.get_exp_rsi(symbol_data["HA_Close"])
-#     symbol_data["Stoch_rsi_K"] , symbol_data["Stoch_rsi_D"] = nv.get_stoch_rsi(symbol_data["HA_RSI"],3,3,14)
-#     
-#     
-#     
-#     print("----------------------------------------------------------")
-#     # print (symbol_data[['Open','High','Low','Close']])
-#     # print(symbol_data[['Date',"HA_Close","HA_RSI"]]) 
-#     # print (symbol_data.loc[50:,["Date","RSI"]]  ) 
-#     # print( symbol_data["Stoch_rsi_K"][-10:])
-#     print(symbol_data[-10:])
+      
+    print("**********************************************************")  
+    if stoch_ris_passed \
+        and ema_200_50_passed \
+        and curr_low_passed :
+            print ('\t You can buy - {}'.format(symbol))
+    else:
+            print ('\t Do not buy - {}'.format(symbol))
+                
+    print("**********************************************************")
+
+
 
 print("-------------------- Start of Nirvana-v1.0 ---------------------------")
-# fetch_data_from_site()
-# create_baseline()
+fetch_data_from_site(symbol)
+create_baseline()
 work_on_data()
+
+'MUKTAARTS'
+'SBIETFQLTY'
+'HOVS'
+'JMA'
+'SMARTLINK'
+'ICICI500'
+'LICNETFGSC'
+'ONEPOINT'
+'LFIC'
 print("-------------------- Nirvana Achieved ---------------------------")
 
 
             
-# symbol_data = u.read_store()
-# print(symbol_data)
-#symbol_data = symbol_data.drop(symbol_data.index[0])
 
-#Tested
-# copy SBIN_store_2020-08-01.txt as temp.txt then apply following and store again
-# fetch_data_from_site()
-# nv.populate_heikin_ashi (symbol_data)
-# symbol_data['Date']=pd.to_datetime(symbol_data['index'], unit='ms').dt.strftime('%Y-%m-%d')
-# symbol_data["HA_RSI"] = nv.get_exp_rsi(symbol_data["HA_Close"])
-# symbol_data["Stoch_rsi_K"] , symbol_data["Stoch_rsi_D"] = nv.get_stoch_rsi(symbol_data["HA_RSI"],3,3,14)
-# nv.persist_to_store(symbol_data,'store/temp.txt')
-# nv.persist_csv_to_store(symbol_data,'store/temp_csv.txt') 
-# Untested
 
