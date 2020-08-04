@@ -37,6 +37,8 @@ def update_records_till_today(symbol_data):
     today = date.today()
     start_day = (symbol_data['Date'].tail(1).item()) + timedelta(days = 1)
     data = get_history(symbol='SBIN',start=start_day.date(),end=today)
+    data.reset_index(inplace=True)
+    data = data.astype({'Date': 'datetime64[ns]'})
     length = len(data)
 #     symbol_data = symbol_data.append(data,ignore_index=True)
 #     print(data)
@@ -45,6 +47,14 @@ def update_records_till_today(symbol_data):
 def work_on_data():
     print("----------------------------------------------------------")
     symbol_data = nv.read_store('store/temp.txt')
+    data, num_delta_records = update_records_till_today(symbol_data)
+    symbol_data = symbol_data.append(data,ignore_index=True)
+    symbol_data = nv.populate_heikin_ashi(symbol_data,num_delta_records)
+    symbol_data["HA_RSI"] = nv.get_exp_rsi(symbol_data["HA_Close"])
+    symbol_data["Stoch_rsi_K"] , symbol_data["Stoch_rsi_D"] = nv.get_stoch_rsi(symbol_data["HA_RSI"],3,3,14)
+      
+    
+    
     print(symbol_data)
 #     # symbol_data = nv.read_store('store/SBIN_store_20200504-20200731.txt')
 #     # print("----------------------------------------------------------")
