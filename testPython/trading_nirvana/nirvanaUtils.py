@@ -7,19 +7,24 @@ from pip._internal import index
 import csv
 import requests
 
+class CustomError(Exception):
+     pass
+
 def getBhavdata():
     url ="https://archives.nseindia.com/products/content/sec_bhavdata_full_02062020.csv"
     return pd.read_csv(url)
 
 def get_data(symbol, from_date = '2016-01-01' ):
-    print("----------------------------------------------------------")
+#     print("----------------------------------------------------------")
     from_date = datetime.strptime (from_date,'%Y-%m-%d')
     to_date = date.today()
-    print("Fetching data from {} to {}".format(from_date,to_date))
+#     print("Fetching data from {} to {}".format(from_date,to_date))
     data=get_history(symbol=symbol,start=from_date.date(),end=to_date)
+    if data.empty :
+        raise CustomError("Could not get data")
     data.reset_index(inplace=True)
-    print("Data Fetched")
-    print("----------------------------------------------------------")
+#     print("Data Fetched")
+#     print("----------------------------------------------------------")
     return data
 
 def read_store (store_path='store/data.txt'):

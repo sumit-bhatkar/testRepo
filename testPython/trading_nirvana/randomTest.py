@@ -1,130 +1,112 @@
-from datetime import datetime
+""" 
+##########################################################################
+
+NSE data plotting
+"""
+import nirvanaUtils as nv
 import json
-#import matplotlib.pyplot as plt
-from nsepy import get_history
-import dateutil.relativedelta
+import numpy as np
 import pandas as pd
-import csv
-import requests
 
-def get_data(symbol, from_date , to_date):
+from datetime import datetime, date, timedelta
+import dateutil.relativedelta
+from nsepy import get_history
+
+LOG_LVL_FATAL = 1
+LOG_LVL_ERROR = 2
+LOG_LVL_WARN  = 3
+LOG_LVL_DEBUG = 4
+LOG_LVL_INFO  = 5
+LOG_LEVEL = LOG_LVL_ERROR
+
+STOCK_RSI_FLAT_PERIOD = 6
+STOCK_RSI_MAX_STD = 6
+LOWEST_LOW_PERIOD = 90
+MAX_CURR_LOW_DIFF = 50
+symbol = 'CAPLIPOINT' 
+#SBIN
+
+
+def fetch_data_from_site(symbol):
+    symbol_data = nv.get_data(symbol)
+    nv.persist_to_store(symbol_data,'store/temp.txt') if LOG_LEVEL >= LOG_LVL_DEBUG else ""
+    return symbol_data
+
+def create_baseline(symbol_data):
+    print("----------------------------------------------------------") if LOG_LEVEL >= LOG_LVL_DEBUG else ""
+    symbol_data = nv.read_store('store/temp.txt') if LOG_LEVEL >= LOG_LVL_DEBUG else ""
+    nv.populate_heikin_ashi (symbol_data)
+    symbol_data["HA_RSI"] = nv.get_exp_rsi(symbol_data["HA_Close"])
+    symbol_data["Stoch_rsi_K"] , symbol_data["Stoch_rsi_D"] = nv.get_stoch_rsi(symbol_data["HA_RSI"],3,3,14)
+    symbol_data['ema200'] = nv.get_td_ema(symbol_data['Close'],200)
+    symbol_data['ema50'] = nv.get_td_ema(symbol_data['Close'],50)
+    nv.persist_to_store(symbol_data,'store/temp.txt')   if LOG_LEVEL >= LOG_LVL_DEBUG else ""
+    return symbol_data
+
+def validate_stoch_rsi(symbol_data):
+    data = symbol_data.tail(STOCK_RSI_FLAT_PERIOD + 1)
+    data['delta'] = (data["Stoch_rsi_K"] - data["Stoch_rsi_D"]).abs()
+    data['diff'] = (data["Stoch_rsi_K"].diff()).abs()
+    
+#     print (data['delta'].var())
+#     print (data['delta'].std())
+    return data['delta'].std().item() < STOCK_RSI_MAX_STD
+
+def validate_ema_200_50(symbol_data):
+    return True
+
+def validate_curr_low(symbol_data):
+    cur_low = symbol_data['Low'].iloc[-1]
+    lowest_low = symbol_data.loc[LOWEST_LOW_PERIOD:,["Low"]].min()
+    print(cur_low - lowest_low.item())
+    return (cur_low - lowest_low.item()) < MAX_CURR_LOW_DIFF
+
+def work_on_data(symbol_data):
     print("----------------------------------------------------------")
-    from_date = datetime.strptime (from_date,'%Y-%m-%d')
-    to_date = datetime.strptime (to_date,'%Y-%m-%d')
-    print("Fetching data from {} to {}".format(from_date,to_date))
-    data=get_history(symbol=symbol,start=from_date,end=to_date)
-    data.reset_index(inplace=True)
-    print("Data Fetched")
-    return data
-
-def persist_to_store (data_frame, store_path='store/data.txt'):
-    json_data = data_frame.to_json()
-    with open(store_path, 'w') as outfile:
-        json.dump(json_data, outfile)
-    print("Saved to file")
-    print("----------------------------------------------------------")
-    
-def fetch_data_from_site():
-    symbol_data = get_data('SBIN','2020-07-01','2020-07-25')
-    persist_to_store(symbol_data,'store/temp_1.txt')
-
-def read_store (store_path='store/data.txt'):
-    print ("Reading from file",store_path)
-    with open(store_path) as json_file:
-        json_data = json.load(json_file)
-        
-    data_frame = pd.read_json(json_data,orient='columns' )
-    return data_frame
+    symbol_data = nv.read_store('store/temp.txt') if LOG_LEVEL >= LOG_LVL_DEBUG else ""
     
     
-def populate_heikin_ashi(df,length=0):
-    df['HA_Close']=(df['Open']+ df['High']+ df['Low']+df['Close'])/4
-    idx = df.index.name
-    if idx == None:
-        idx = '_Temp_Idx_'
-        df.index.name = '_Temp_Idx_'
-    if length != 0 :
-        length = len(df)-length
-    df.reset_index(inplace=True)
-    for i in range(length, len(df)):
-        if i == 0:
-            df.at[i, 'HA_Open'] = ((df.at[i, 'Open'] + df.at[i, 'Close']) / 2)
-        else:
-            df.at[i, 'HA_Open'] = ((df.at[i - 1, 'HA_Open'] + df.at[i - 1, 'HA_Close']) / 2)
- 
-    if idx != '_Temp_Idx_':
-        df.set_index(idx, inplace=True)
-    else :
-        df.set_index('_Temp_Idx_', inplace=True)
-        df.index.name =None
-    df['HA_High']=df[['HA_Open','HA_Close','High']].max(axis=1)
-    df['HA_Low']=df[['HA_Open','HA_Close','Low']].min(axis=1)
-    return df
+    
+    stoch_ris_passed = validate_stoch_rsi(symbol_data)
+    ema_200_50_passed = validate_ema_200_50(symbol_data)
+    curr_low_passed = validate_curr_low(symbol_data)
 
-def get_ema_for_rsi(series,period=14,init_val=0):
-    idx = series.index.name
-    ema = pd.Series([],dtype='float64')
-    for i in range(0, len(series)):
-        if i == 0:
-            ema.at[i] = init_val
-        else:
-            ema.at[i] = ((ema.at[i-1]*(period-1)) + series.at[i])/period
-#     print(ema)
-    return ema
+    print(symbol_data) if LOG_LEVEL >= LOG_LVL_DEBUG else ""
+      
+    print("**********************************************************")  if LOG_LEVEL >= LOG_LVL_DEBUG else ""
+    if stoch_ris_passed \
+        and ema_200_50_passed \
+        and curr_low_passed :
+            print ('\t BUY - {}'.format(symbol))
+    else:
+            print ('\t DO NOT BUY - {}'.format(symbol))
+                
+    print("**********************************************************") if LOG_LEVEL >= LOG_LVL_DEBUG else ""
 
-def get_exp_rsi(series, period=14):
-    #change = series['HA_Close'].diff()
-    change = series.diff()
-    gain, loss = change.copy(), change.copy()
-    gain[gain < 0] = 0
-    loss[loss > 0] = 0
-#     avg_gain = get_ema_for_rsi(gain,period,1.63)  # this is temp val given to SBIN
-#     avg_loss = get_ema_for_rsi(loss.abs(),period,2.98)
-    avg_gain = get_ema_for_rsi(gain,period)  # this is temp val given to SBIN
-    avg_loss = get_ema_for_rsi(loss.abs(),period)
-    rsi = avg_gain / avg_loss
-    rsi = 100 - 100/(1+(rsi))
-#     print(rsi)
-    return rsi
 
-##############################################################################
-# fetch_data_from_site()
-sd = get_data('SBIN','2020-07-01','2020-07-25')
- 
-# sd.index.name = 'Date'
-populate_heikin_ashi(sd)
-sd["HA_RSI"] = get_exp_rsi(sd["HA_Close"])
-persist_to_store(sd,'store/temp_1.txt')
-##############################################################################
 
-sd = read_store('store/temp_1.txt')
-# sd.index.name = 'Date'
-data = get_data('SBIN','2020-07-25','2020-08-03')
-data = data.astype({'Date': 'datetime64[ns]'})
+print("-------------------- Start of Nirvana-v1.0 ---------------------------")
+symbol_data = fetch_data_from_site(symbol)
+symbol_data = create_baseline(symbol_data)
+symbol_data = work_on_data(symbol_data)
 
-# data.reset_index(inplace=True)
-# populate_heikin_ashi(sd)
-print(sd)
-# print(sd.dtypes)
-# print(data.dtypes)
 
-sd = sd.append(data,ignore_index=True)
-# sd.drop(columns=['index'],inplace=True)
-# sd.reset_index(inplace=True,drop=True)
+# print ("testing info") if LOG_LEVEL >= LOG_LVL_INFO else ""
+# print ("testing debug") if LOG_LEVEL >= LOG_LVL_DEBUG else ""
+# print ("testing error") if LOG_LEVEL >= LOG_LVL_ERROR else ""
+# print ("testing fatal") if LOG_LEVEL >= LOG_LVL_FATAL else ""
+'MUKTAARTS'
+'SBIETFQLTY'
+'HOVS'
+'JMA'
+'SMARTLINK'
+'ICICI500'
+'LICNETFGSC'
+'ONEPOINT'
+'LFIC'
+print("-------------------- Nirvana Achieved ---------------------------")
 
-populate_heikin_ashi(sd,6)
 
-sd["HA_RSI"] = get_exp_rsi(sd["HA_Close"])
- 
-# populate_heikin_ashi(sd,6)
-
-# print (sd.at[1593561600000,'Date'])
-# print (type(sd.at[1593561600000,'Date']))
-# #  
-# print (sd.at[20,'Date'])
-# print (type(sd.at[20,'Date']))
-
-print(sd)
-# print(data)
+            
 
 
