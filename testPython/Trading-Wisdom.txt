@@ -1,0 +1,11 @@
+To append to dataframe
+	Assuming that your dataframe is indexed in order you can:
+
+	First check to see what the next index value is to create a new row:
+
+	myindex = df.shape[0]+1 
+	Then use 'at' to write to each desired column
+
+	df.at[myindex,'A']=val1
+	df.at[myindex,'B']=val2
+	df.at[myindex,'C']=val3

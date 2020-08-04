@@ -37,6 +37,7 @@ def get_data(symbol, from_date , to_date):
     print("Fetching data from {} to {}".format(from_date,to_date))
     #data=get_history(symbol='SBIN',start=from_date,end=to_date)
     data=get_history(symbol=symbol,start=from_date,end=to_date)
+    data.reset_index(inplace=True)
     print("Data Fetched")
     #doc = data.to_json()
     #doc = data.iloc[0:5].to_json()
@@ -64,18 +65,27 @@ def persist_csv_to_store(data_frame, store_path='store/data.txt'):
     print("Saved to file")
     print("----------------------------------------------------------")
 
-def populate_heikin_ashi(df):
+def populate_heikin_ashi(df,length=0):
     df['HA_Close']=(df['Open']+ df['High']+ df['Low']+df['Close'])/4
     idx = df.index.name
+    if idx == None:
+        idx = '_Temp_Idx_'
+    df.index.name = '_Temp_Idx_'
+    if length != 0 :
+        length = len(df)-length
     df.reset_index(inplace=True)
-    for i in range(0, len(df)):
+    for i in range(length, len(df)):
         if i == 0:
             df.at[i, 'HA_Open'] = ((df.at[i, 'Open'] + df.at[i, 'Close']) / 2)
         else:
             df.at[i, 'HA_Open'] = ((df.at[i - 1, 'HA_Open'] + df.at[i - 1, 'HA_Close']) / 2)
 
-    if idx:
+    if idx != '_Temp_Idx_':
         df.set_index(idx, inplace=True)
+    else :
+        df.set_index('_Temp_Idx_', inplace=True)
+        df.index.name =None
+        
     df['HA_High']=df[['HA_Open','HA_Close','High']].max(axis=1)
     df['HA_Low']=df[['HA_Open','HA_Close','Low']].min(axis=1)
     return df
@@ -109,8 +119,10 @@ def get_exp_rsi(series, period=14):
     gain, loss = change.copy(), change.copy()
     gain[gain < 0] = 0
     loss[loss > 0] = 0
-    avg_gain = get_ema_for_rsi(gain,period,1.63)  # this is temp val given to SBIN
-    avg_loss = get_ema_for_rsi(loss.abs(),period,2.98)
+#     avg_gain = get_ema_for_rsi(gain,period,1.63)  # this is temp val given to SBIN
+#     avg_loss = get_ema_for_rsi(loss.abs(),period,2.98)
+    avg_gain = get_ema_for_rsi(gain,period)  # this is temp val given to SBIN
+    avg_loss = get_ema_for_rsi(loss.abs(),period)
     rsi = avg_gain / avg_loss
     rsi = 100 - 100/(1+(rsi))
 #     print(rsi)
