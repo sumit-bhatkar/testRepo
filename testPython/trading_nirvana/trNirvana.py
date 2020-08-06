@@ -11,18 +11,18 @@ import pandas as pd
 from datetime import datetime, date, timedelta
 import dateutil.relativedelta
 from nsepy import get_history
-
-LOG_LVL_FATAL = 1
-LOG_LVL_ERROR = 2
-LOG_LVL_WARN  = 3
-LOG_LVL_DEBUG = 4
-LOG_LVL_INFO  = 5
-LOG_LEVEL = LOG_LVL_ERROR
+from matplotlib.pyplot import axis
 
 STOCK_RSI_FLAT_PERIOD = 6
 STOCK_RSI_MAX_STD = 6
 LOWEST_LOW_PERIOD = 90
 MAX_CURR_LOW_DIFF = 50
+
+''' Screening Thresholds '''
+TTQ_CHANGE_THRESHOLD = 100
+TO_CHANGE_THRESHOLD = 200
+DEL_PERCENT_THRESHOLD = 20
+
 symbol = 'CAPLIPOINT' 
 #SBIN
 
@@ -85,6 +85,7 @@ def work_on_data(symbol_data):
 
 def get_signal(symbol):
     symbol_data = nv.get_data(symbol)
+#     print(symbol_data)
     nv.populate_heikin_ashi (symbol_data)
     symbol_data["HA_RSI"] = nv.get_exp_rsi(symbol_data["HA_Close"])
     symbol_data["Stoch_rsi_K"] , symbol_data["Stoch_rsi_D"] = nv.get_stoch_rsi(symbol_data["HA_RSI"],3,3,14)
@@ -103,31 +104,89 @@ def get_signal(symbol):
             print ('DO NOT BUY - {}'.format(symbol))
 
 
+def way_to_nirvana( list_of_stocks ):
+    #TODO : Check empty frames
+#     list_of_stocks.isempty()
+#     list_of_stocks = [ 'CAPLIPOINT',
+#         'MUKTAARTS','MEGASOFT','SBIN',
+# #         'LICNETFGSC','ONEPOINT','LFIC'
+#         'SBIN'
+#         ]
+    
+    time_taken = []
+    time_taken.append(datetime.today())
+    for symbol in list_of_stocks :
+        print('Checking for {}'.format(symbol))
+        try :
+            get_signal(symbol)
+    #         print("nothing")
+            time_taken.append(datetime.today())
+        except :
+            print("Oops! Error occurred.")
+    
+    x = pd.Series(time_taken)
+    print(x.diff())
+    print(x.diff().sum())
+
+def store_bhavdata():
+    url ="https://archives.nseindia.com/products/content/sec_bhavdata_full_04082020.csv" 
+    bd = pd.read_csv(url)  #bhav_data
+    bd.columns = bd.columns.str.strip()
+    nv.persist_to_store(bd,'store/bhav_20200804.txt')
+    url ="https://archives.nseindia.com/products/content/sec_bhavdata_full_03082020.csv" 
+    bd = pd.read_csv(url)  #bhav_data
+    bd.columns = bd.columns.str.strip()
+    nv.persist_to_store(bd,'store/bhav_20200803.txt')
+
+def read_bhavdata():
+    bd1 = nv.read_store('store/bhav_20200803.txt')
+    bd2 = nv.read_store('store/bhav_20200804.txt')
+    return bd1[bd1['SERIES'].str.contains('|'.join(["EQ","BE"]))] , \
+        bd2[bd2['SERIES'].str.contains('|'.join(["EQ","BE"]))] 
+      
+
 print("-------------------- Start of Nirvana-v1.0 ---------------------------")
 # symbol_data = fetch_data_from_site(symbol)
 # symbol_data = create_baseline(symbol_data)
 # symbol_data = work_on_data(symbol_data)
 # get_signal(symbol)
 
-list_of_stocks = [ 'CAPLIPOINT',
-    'MUKTAARTS','SBIETFQLTY','SBIN',
-    'LICNETFGSC','ONEPOINT','LFIC'
-    ]
+# way_to_nirvana()
 
-time_taken = []
-time_taken.append(datetime.today())
-for symbol in list_of_stocks :
-    print(symbol)
-    try :
-        get_signal(symbol)
-#         print("nothing")
-        time_taken.append(datetime.today())
-    except :
-        print("Oops! Error occurred.")
+bd1,bd2 = read_bhavdata()
+st = pd.merge(bd1, bd2, how='outer', on=['SYMBOL','SERIES', 'SYMBOL','SERIES'])
 
-x = pd.Series(time_taken)
-print(x.diff())
+st['tq%_x'] = st['TTL_TRD_QNTY_x'] / st['NO_OF_TRADES_x']
+st['tq%_y'] = st['TTL_TRD_QNTY_y'] / st['NO_OF_TRADES_y']
+st['tq_c'] = (st['tq%_y'] - st['tq%_x'])/(st['tq%_x'])*(100)
 
+st['to_c'] = (st['TURNOVER_LACS_y'] - st['TURNOVER_LACS_x'])/st['TURNOVER_LACS_x'] *100
+
+st.fillna(0)
+st = st.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
+# print(type(st.DELIV_PER_y.at[1]))
+# 
+# print(type(st.DELIV_PER_y.at[3]))
+# 
+# pd.to_numeric(df['DataFrame Column'], errors='coerce')
+# print(type(st.DELIV_PER_y.at[5]))
+
+
+screened = st[
+                ( st.tq_c > TTQ_CHANGE_THRESHOLD       ) & 
+                ( st.to_c > TO_CHANGE_THRESHOLD        ) & 
+                ( pd.to_numeric(st.DELIV_PER_y , errors='coerce')> DEL_PERCENT_THRESHOLD ) 
+            ] 
+
+# print(screened[['SYMBOL','tq_c','to_c','DELIV_PER_y']].sort_values (['tq_c','to_c'],ascending=False))
+# print(screened.shape)
+ 
+way_to_nirvana( screened['SYMBOL'] )   
+
+# print(bd1)
+# print(st['NO_OF_TRADES_x'])
+# print(st['NO_OF_TRADES_y'])
+# nv.persist_csv_to_store(st,'store/merge.csv')
 print("----------------------------------------------------------")    
 # print(time_taken)    
 # print ("testing info") if LOG_LEVEL >= LOG_LVL_INFO else ""
@@ -147,5 +206,6 @@ print("-------------------- Nirvana Achieved ---------------------------")
 
 
             
+
 
 

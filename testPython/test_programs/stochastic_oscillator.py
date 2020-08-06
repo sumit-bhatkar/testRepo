@@ -39,6 +39,8 @@ df['diff'] = diff
 df['%K'] = stock
 print (df)
 df['%K'].plot()
+df['diff'].plot()
+df['Min'].plot()
 df.tail()
 plt.show()
 

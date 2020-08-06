@@ -11,8 +11,13 @@ class CustomError(Exception):
      pass
 
 def getBhavdata():
+#     url ="https://archives.nseindia.com/products/content/sec_bhavdata_full_{}.csv" \
+#     .format(datetime.strftime(datetime.now(),'%d%m%Y'))
     url ="https://archives.nseindia.com/products/content/sec_bhavdata_full_02062020.csv"
-    return pd.read_csv(url)
+    bd = pd.read_csv(url)
+#     bd.columns = bd.columns.str.strip()
+    df.rename(columns=lambda x: x.strip())
+    return bd
 
 def get_data(symbol, from_date = '2016-01-01' ):
 #     print("----------------------------------------------------------")
