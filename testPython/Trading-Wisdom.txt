@@ -9,3 +9,10 @@ To append to dataframe
 	df.at[myindex,'A']=val1
 	df.at[myindex,'B']=val2
 	df.at[myindex,'C']=val3
+	
+
+
+=SUMIFS(detail!AK2:AK1137,detail!A2:A1137,">250",detail!A2:A1137,"<1030")
+=SUMIFS(detail!$AL$2:$AL$1137,detail!$A$2:$A$1137,">250",detail!$A$2:$A$1137,"<1030")
+
+=D5/(D5+D6)*100

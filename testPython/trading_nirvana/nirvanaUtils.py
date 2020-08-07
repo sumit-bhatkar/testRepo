@@ -40,17 +40,24 @@ def read_store (store_path='store/data.txt'):
     data_frame = pd.read_json(json_data,orient='columns' )
     return data_frame
     
-def persist_to_store (data_frame, store_path='store/data.txt'):
+def persist_to_store (data_frame, store_path='store/data.json'):
     json_data = data_frame.to_json()
     with open(store_path, 'w') as outfile:
         json.dump(json_data, outfile)
     print("Saved to file")
     print("----------------------------------------------------------")
 
-def persist_csv_to_store(data_frame, store_path='store/data.txt'):
+def persist_csv_to_store(data_frame, store_path='store/data.csv'):
     data_frame.to_csv(store_path)
-    print("Saved to file")
+    print("Saved csv to file")
     print("----------------------------------------------------------")
+
+def persist_excel_to_store(data_frame, store_path='store/data.xlsx', sheet_name = 'detail'):
+    data_frame.to_excel(store_path,
+             sheet_name=sheet_name)  
+    print("Saved excel file")
+    print("----------------------------------------------------------")
+
 
 def populate_heikin_ashi(df,length=0):
     df['HA_Close']=(df['Open']+ df['High']+ df['Low']+df['Close'])/4

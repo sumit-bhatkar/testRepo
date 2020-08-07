@@ -12,11 +12,13 @@ from datetime import datetime, date, timedelta
 import dateutil.relativedelta
 from nsepy import get_history
 from matplotlib.pyplot import axis
+from numpy.core.fromnumeric import shape
 
 STOCK_RSI_FLAT_PERIOD = 6
-STOCK_RSI_MAX_STD = 6
+STOCK_RSI_MAX_STD = 2
 LOWEST_LOW_PERIOD = 90
-MAX_CURR_LOW_DIFF = 50
+MAX_CURR_LOW_DIFF = 10
+EMA_50_THRESHOLD = 10
 
 ''' Screening Thresholds '''
 TTQ_CHANGE_THRESHOLD = 100
@@ -43,68 +45,80 @@ def create_baseline(symbol_data):
     nv.persist_to_store(symbol_data,'store/temp.txt')   
     return symbol_data
 
-def validate_stoch_rsi(symbol_data):
-    data = symbol_data.tail(STOCK_RSI_FLAT_PERIOD + 1)
+def validate_stoch_rsi_flat(symbol_data,
+                            flat_period = STOCK_RSI_FLAT_PERIOD, 
+                            max_flat_std = STOCK_RSI_MAX_STD):
+    data = symbol_data.tail(flat_period + 1)
     data['delta'] = (data["Stoch_rsi_K"] - data["Stoch_rsi_D"]).abs()
     data['diff'] = (data["Stoch_rsi_K"].diff()).abs()
+    col_name = 'flatstokrsi_{}'.format(flat_period) 
     
-#     print (data['delta'].var())
-#     print (data['delta'].std())
-    return data['delta'].std().item() < STOCK_RSI_MAX_STD
+    return data['delta'].std().item() < max_flat_std
 
-def validate_ema_200_50(symbol_data):
-    return True
+def get_percent_difference(current_value,base_value):
+    return (current_value - base_value) / base_value * 100
 
-def validate_curr_low(symbol_data):
-    cur_low = symbol_data['Low'].iloc[-1]
-    lowest_low = symbol_data.loc[LOWEST_LOW_PERIOD:,["Low"]].min()
-#     print(cur_low - lowest_low.item())
-    return (cur_low - lowest_low.item()) < MAX_CURR_LOW_DIFF , lowest_low.item() + 10
+def validate_ema_200_50(symbol_data, ema50_threshold = EMA_50_THRESHOLD):
+    print(symbol_data['ema50'].tail(1).item(), symbol_data['Close'].tail(1).item())
+    return abs(get_percent_difference (
+                    symbol_data['Close'].tail(1).item() , 
+                    symbol_data['ema50'].tail(1).item()
+                )) < ema50_threshold 
+#     return True
 
-def work_on_data(symbol_data):
-    print("----------------------------------------------------------")
-    symbol_data = nv.read_store('store/temp.txt') 
+def validate_curr_low(symbol_data,
+                      low_period = LOWEST_LOW_PERIOD, 
+                      diff_thr = MAX_CURR_LOW_DIFF):
+    cur_low = symbol_data['Low'].iloc[-1].item()
+    lowest_low = symbol_data.loc[low_period:,["Low"]].min().item()
+    percent_difference =  get_percent_difference(cur_low, lowest_low)
+    print(cur_low, lowest_low, abs(percent_difference))
     
-    
-    
-    stoch_ris_passed = validate_stoch_rsi(symbol_data)
+    return percent_difference < diff_thr , lowest_low
+
+def get_signal_using_strategy_1(symbol_data):
+
+    stoch_ris_passed = validate_stoch_rsi_flat(symbol_data)
     ema_200_50_passed = validate_ema_200_50(symbol_data)
-    curr_low_passed = validate_curr_low(symbol_data)
+    curr_low_passed , lowest_low_value = validate_curr_low(symbol_data)
+    
+    print(stoch_ris_passed,ema_200_50_passed,curr_low_passed)
 
-    print(symbol_data) 
-      
-    print("**********************************************************")  
     if stoch_ris_passed \
         and ema_200_50_passed \
         and curr_low_passed :
-            print ('\t BUY - {}'.format(symbol))
+            print ('BUY - {} : Close {} , 3 month Low {}'.format(symbol_data.symbol.tail(1).item(),symbol_data['Close'].tail(1).item(),lowest_low_value))
+            return True
     else:
-            print ('\t DO NOT BUY - {}'.format(symbol))
-                
-    print("**********************************************************") 
+            print ('DO NOT BUY - {}'.format(symbol))
+            return False
 
-def get_signal(symbol):
-    symbol_data = nv.get_data(symbol)
-#     print(symbol_data)
+def fetch_data_for_symbol(symbol):
+    ''' 
+    --------------------------------------------------------
+    When reading from store use following
+    --------------------------------------------------------
+    '''
+    store_path = 'store/DB/01012016_{}.json'.format(symbol)
+    symbol_data = nv.read_store(store_path)
+    '''
+    --------------------------------------------------------
+    '''     
+    ''' 
+    --------------------------------------------------------
+    When calculation is not done before use these lines
+    --------------------------------------------------------
+    symbol_data = nv.get_data(symbol
     nv.populate_heikin_ashi (symbol_data)
     symbol_data["HA_RSI"] = nv.get_exp_rsi(symbol_data["HA_Close"])
     symbol_data["Stoch_rsi_K"] , symbol_data["Stoch_rsi_D"] = nv.get_stoch_rsi(symbol_data["HA_RSI"],3,3,14)
     symbol_data['ema200'] = nv.get_td_ema(symbol_data['Close'],200)
     symbol_data['ema50'] = nv.get_td_ema(symbol_data['Close'],50)
-    
-    stoch_ris_passed = validate_stoch_rsi(symbol_data)
-    ema_200_50_passed = validate_ema_200_50(symbol_data)
-    curr_low_passed , buy_value = validate_curr_low(symbol_data)
-    
-    if stoch_ris_passed \
-        and ema_200_50_passed \
-        and curr_low_passed :
-            print ('BUY - {} at {}'.format(symbol,buy_value))
-    else:
-            print ('DO NOT BUY - {}'.format(symbol))
+    --------------------------------------------------------
+    '''  
+    return symbol_data
 
-
-def way_to_nirvana( list_of_stocks ):
+def nirvana_prediction( list_of_stocks ):
     #TODO : Check empty frames
 #     list_of_stocks.isempty()
 #     list_of_stocks = [ 'CAPLIPOINT',
@@ -112,17 +126,19 @@ def way_to_nirvana( list_of_stocks ):
 # #         'LICNETFGSC','ONEPOINT','LFIC'
 #         'SBIN'
 #         ]
-    
     time_taken = []
     time_taken.append(datetime.today())
     for symbol in list_of_stocks :
-        print('Checking for {}'.format(symbol))
-        try :
-            get_signal(symbol)
-    #         print("nothing")
-            time_taken.append(datetime.today())
-        except :
-            print("Oops! Error occurred.")
+        print('\nChecking for {}'.format(symbol))
+        symbol_data = fetch_data_for_symbol(symbol)
+        get_signal_using_strategy_1(symbol_data)
+        time_taken.append(datetime.today())
+#         try :
+#             get_signal_using_strategy_1(symbol)
+#             time_taken.append(datetime.today())
+#         except Exception as e: 
+#             print(e)
+#             print("Oops! Error occurred.")
     
     x = pd.Series(time_taken)
     print(x.diff())
@@ -143,45 +159,53 @@ def read_bhavdata():
     bd2 = nv.read_store('store/bhav_20200804.txt')
     return bd1[bd1['SERIES'].str.contains('|'.join(["EQ","BE"]))] , \
         bd2[bd2['SERIES'].str.contains('|'.join(["EQ","BE"]))] 
-      
+
+def screen_strategy_1(st):
+    st['tq%_x'] = st['TTL_TRD_QNTY_x'] / st['NO_OF_TRADES_x']
+    st['tq%_y'] = st['TTL_TRD_QNTY_y'] / st['NO_OF_TRADES_y']
+    st['tq_c'] = (st['tq%_y'] - st['tq%_x'])/(st['tq%_x'])*(100)
+    st['to_c'] = (st['TURNOVER_LACS_y'] - st['TURNOVER_LACS_x'])/st['TURNOVER_LACS_x'] *100
+    
+    st.fillna(0)
+    st = st.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
+    return  st, st[
+                    ( st.tq_c > TTQ_CHANGE_THRESHOLD       ) & 
+                    ( st.to_c > TO_CHANGE_THRESHOLD        ) & 
+                    ( pd.to_numeric(st.DELIV_PER_y , errors='coerce')> DEL_PERCENT_THRESHOLD ) 
+                ] 
+
+def screen_strategy_test(st):
+    test_stocks = [ 
+            'TATAMOTORS',
+            'RELIANCE',
+            'BANDHANBNK',
+            'LAURUSLABS',
+            'HDFCBANK',
+            'SBIN'
+        ]
+    return  st, pd.DataFrame(test_stocks, columns =['SYMBOL'])
+ 
+                    
+def screen_from_bhavcopy_and_predict():
+    bd1,bd2 = read_bhavdata()
+    st = pd.merge(bd1, bd2, how='outer', on=['SYMBOL','SERIES', 'SYMBOL','SERIES'])
+    st, screened = screen_strategy_test(st)
+#     st, screened = screen_strategy_1(st)
+    nirvana_prediction( screened['SYMBOL'] )     
+
+def study_strategy_for_stock(symbol, strategy_func):
+    print("Strategy result {}".format(strategy_func(symbol)))
+    return 
 
 print("-------------------- Start of Nirvana-v1.0 ---------------------------")
 # symbol_data = fetch_data_from_site(symbol)
 # symbol_data = create_baseline(symbol_data)
-# symbol_data = work_on_data(symbol_data)
-# get_signal(symbol)
+# get_signal_using_strategy_1(symbol)
+screen_from_bhavcopy_and_predict()
 
-# way_to_nirvana()
+# screen_from_bhavcopy_and_predict()
+# study_strategy_for_stock('SBIN',get_signal_using_strategy_1)
 
-bd1,bd2 = read_bhavdata()
-st = pd.merge(bd1, bd2, how='outer', on=['SYMBOL','SERIES', 'SYMBOL','SERIES'])
-
-st['tq%_x'] = st['TTL_TRD_QNTY_x'] / st['NO_OF_TRADES_x']
-st['tq%_y'] = st['TTL_TRD_QNTY_y'] / st['NO_OF_TRADES_y']
-st['tq_c'] = (st['tq%_y'] - st['tq%_x'])/(st['tq%_x'])*(100)
-
-st['to_c'] = (st['TURNOVER_LACS_y'] - st['TURNOVER_LACS_x'])/st['TURNOVER_LACS_x'] *100
-
-st.fillna(0)
-st = st.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
-# print(type(st.DELIV_PER_y.at[1]))
-# 
-# print(type(st.DELIV_PER_y.at[3]))
-# 
-# pd.to_numeric(df['DataFrame Column'], errors='coerce')
-# print(type(st.DELIV_PER_y.at[5]))
-
-
-screened = st[
-                ( st.tq_c > TTQ_CHANGE_THRESHOLD       ) & 
-                ( st.to_c > TO_CHANGE_THRESHOLD        ) & 
-                ( pd.to_numeric(st.DELIV_PER_y , errors='coerce')> DEL_PERCENT_THRESHOLD ) 
-            ] 
-
-# print(screened[['SYMBOL','tq_c','to_c','DELIV_PER_y']].sort_values (['tq_c','to_c'],ascending=False))
-# print(screened.shape)
- 
-way_to_nirvana( screened['SYMBOL'] )   
 
 # print(bd1)
 # print(st['NO_OF_TRADES_x'])
@@ -193,15 +217,6 @@ print("----------------------------------------------------------")
 # print ("testing debug") if LOG_LEVEL >= LOG_LVL_DEBUG else ""
 # print ("testing error") if LOG_LEVEL >= LOG_LVL_ERROR else ""
 # print ("testing fatal") if LOG_LEVEL >= LOG_LVL_FATAL else ""
-'MUKTAARTS'
-'SBIETFQLTY'
-'HOVS'
-'JMA'
-'SMARTLINK'
-'ICICI500'
-'LICNETFGSC'
-'ONEPOINT'
-'LFIC'
 print("-------------------- Nirvana Achieved ---------------------------")
 
 

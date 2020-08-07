@@ -43,23 +43,36 @@ list2 = [
 list2 = [
        ['EQ',41, 21, 31], 
        [' EQ',45, 25, 35],
-       ['EQ ',46, 26, 36],
-       [' L12',44, 24, 34],
-       ['PP',44, 24, 34],
+       ['EQ ',46, 26, 56],
+       [' L12',44, 24, 44],
+       ['PP',44, 24, 45],
        ['PEQ',44, 24, 34],
        ['BE',20, 70, 88]]           
 df1 = pd.DataFrame(list1, columns =['Date', 'Close', 'Low','High'], dtype = float)
 df2 = pd.DataFrame(list2, columns =['Date', 'Close', 'Low','High'], dtype = float)  
 
+
+def normalise_row(row):
+    if row['Close'] < row['High'] :
+        result = row['Close'] - row['Low']
+    else :
+        result = row['Close'] - 20
+    return result
+
+df2['n'] = df2.apply(lambda row : normalise_row(row), axis=1) 
+
+
+
+
 # df = pd.concat([df1, df2], axis=1, sort=True)
-df = pd.merge(df1, df2, how='outer', on=['Date', 'Date'])
+# df = pd.merge(df1, df2, how='outer', on=['Date', 'Date'])
 # df['diff'] = df[(df['Close'] >11 )]
 
 # df['ha'] = df.apply(lambda x: some_func(x['Close'],x['High']),axis=1)
 
-print(df1)
-# print(df2)
-print(df2 [df2['Date'].str.contains('|'.join(["EQ","BE"]) )])
+# print(df1)
+print(df2)
+# print(df2 [df2['Date'].str.contains('|'.join(["EQ","BE"]) )])
 # print(df)
 # print(df.tail(2)) 
 # print(df.Low.head(2))
