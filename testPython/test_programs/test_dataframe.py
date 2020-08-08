@@ -61,7 +61,10 @@ def normalise_row(row):
 
 df2['n'] = df2.apply(lambda row : normalise_row(row), axis=1) 
 
+a =15
+b=23
 
+print(f"this is better {a} then format syntac {b}")
 
 
 # df = pd.concat([df1, df2], axis=1, sort=True)

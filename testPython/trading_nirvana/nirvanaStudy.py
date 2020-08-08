@@ -7,16 +7,20 @@ from datetime import datetime, date, timedelta
 import dateutil.relativedelta
 from nsepy import get_history
 
+from multiprocessing import Pool    
+import concurrent.futures
+import time
+
 list_of_stocks = [ 
-        'TATAMOTORS',
-        'RELIANCE',
-        'BANDHANBNK',
-        'LAURUSLABS',
-        'HDFCBANK',
-        'SBIN',
-        'ICICIBANK',
-        'AXISBANK',
-        'SUNPHARMA',
+#         'TITAN',
+#         'BEL',
+#         'BANDHANBNK',
+#         'BLUESTARCO',
+#         'AXISBANK',
+#         'THERMAX',
+        'ABB',
+        'JUBILANT',
+#         'JBMA',
         ]
 
 STOCK_RSI_FLAT_PERIOD = 4
@@ -65,17 +69,41 @@ def validate_delivery_percent(symbol_data,
     symbol_data['deliv_check'] = (symbol_data['%Deliverble'] *100 ) > 30
     return symbol_data['deliv_check'].tail(1).item() , symbol_data
 
+def validate_vol_per_trade(symbol_data,
+                            max_flat_std = STOCK_RSI_MAX_STD):
+    symbol_data['ttq'] = (symbol_data['Volume'] / symbol_data['Trades'])
+    symbol_data['ttqold'] = (symbol_data['Volume'].shift(-1) / symbol_data['Trades'].shift(-1))
+    symbol_data['vol_trade_check'] = ((symbol_data['ttq'] - symbol_data['ttqold'])/symbol_data['ttqold'] * 100) > 200
+
+    return symbol_data['vol_trade_check'].tail(1).item() , symbol_data
+
+def validate_turnover(symbol_data,
+                            max_flat_std = STOCK_RSI_MAX_STD):
+    symbol_data['turnover_check'] = ((symbol_data['Turnover'] - symbol_data['Turnover'].shift(-1))/symbol_data['Turnover'].shift(-1) * 100) > 200
+
+    return symbol_data['turnover_check'].tail(1).item() , symbol_data
+
 def get_signal_using_strategy_1(symbol_data):
     stoch_ris_passed,symbol_data = validate_stoch_rsi_flat(symbol_data)
     ema_200_50_passed,symbol_data = validate_ema_200_50(symbol_data)
     curr_low_passed , symbol_data = validate_curr_low(symbol_data)
     lowest_low_value = symbol_data.lowest_low.tail(1).item()
     delivery_percent_pass , symbol_data  = validate_delivery_percent(symbol_data)
+    vol_per_trade_pass , symbol_data  = validate_vol_per_trade(symbol_data)
+    turnover_pass , symbol_data  = validate_turnover(symbol_data)
     
+#     symbol_data['signal_st1'] = (symbol_data['flatstokrsi_check']) &  \
+#                                 (symbol_data['ema50_check']) & \
+#                                 (symbol_data['lowest_low_check']) &\
+#                                 (symbol_data['deliv_check']) &\
+#                                 (symbol_data['vol_trade_check']) &\
+#                                 (symbol_data['turnover_check'])
     symbol_data['signal_st1'] = (symbol_data['flatstokrsi_check']) &  \
                                 (symbol_data['ema50_check']) & \
-                                (symbol_data['lowest_low_check']) &\
-                                (symbol_data['deliv_check'])
+                                (symbol_data['lowest_low_check']) 
+#                                 (symbol_data['deliv_check']) &\
+#                                 (symbol_data['vol_trade_check']) &\
+#                                 (symbol_data['turnover_check'])
 #     print("----------------------------------------------------------")    
 #     print(stoch_ris_passed,ema_200_50_passed,curr_low_passed)
 #     symbol = symbol_data['Symbol'].tail(1).item()
@@ -96,7 +124,7 @@ def fetch_data_for_symbol(symbol):
 
 def get_buy_price_strategy_1(symbol_data):
     ## return value increased by 2% of close
-    symbol_data['buy'] = symbol_data['Close'] * 1.02 
+    symbol_data['buy'] = symbol_data['Close'] * 1.01 
     return symbol_data
 
 def get_sell_price_strategy_1(symbol_data):
@@ -114,17 +142,31 @@ def screen_strategy_test(st):
             'HDFCBANK',
             'SBIN'
         ]
-    return  st, pd.DataFrame(test_stocks, columns =['SYMBOL'])
-
-def study_strategy_for_stock(name,symbol, strategy_func, 
-                             buy_strat_func, sale_strat_func, 
-                             proc_result_func):
+def process_result_format_1(name,symbol_data):
+    print('--------------------------------------------------------------------')
+    profit = symbol_data.loc[365:,['profit']].sum().item()
+    s = symbol_data.loc[365:,['success']].sum().item()
+    f = symbol_data.loc[365:,['fail']].sum().item()
+    sp = s/(s+f)*100
+    print('Total earnings = {}'.format(profit))
+    print('Success ratio  = {}'.format(sp))
+#     persist_to_store() ## this is for web display 
+    nv.persist_excel_to_store(symbol_data,'store/study/{}.xlsx'.format(name))
+    return symbol_data
+                             
+def study_strategy_for_stock(symbol, 
+                             strategy_func = get_signal_using_strategy_1, 
+                             buy_strat_func = get_buy_price_strategy_1, 
+                             sale_strat_func = get_sell_price_strategy_1, 
+                             proc_result_func = process_result_format_1
+                             ):
     hold_period = 90
-    symbol_data = strategy_func(symbol)
-    print("Strategy result {}".format(symbol_data.signal_st1.tail(1).item()))
+    name = f'{symbol}_strat_1_study'
+    symbol_data = fetch_data_for_symbol(symbol)
+    symbol_data = strategy_func(symbol_data)
     symbol_data = buy_strat_func(symbol_data)
     symbol_data = sale_strat_func(symbol_data)
-    symbol_data['future_max'] = symbol_data['High'].rolling(hold_period).max().shift(0-hold_period)
+    symbol_data['future_max'] = symbol_data['High'].rolling(hold_period, min_periods=1).max().shift(0-hold_period)
     
     def get_profit(row):
         if row['sale_t'] < row['future_max'] :
@@ -153,36 +195,27 @@ def study_strategy_for_stock(name,symbol, strategy_func,
     proc_result_func(name,symbol_data)
     return symbol_data
 
-def process_result_format_1(name,symbol_data):
-    print('--------------------------------------------------------------------')
-    profit = symbol_data.loc[365:-90,['profit']].sum()
-    s = symbol_data.loc[365:-90,['success']].sum().item()
-#     f = symbol_data.loc[365:-90,['fail']].sum().item()
-#     sp = s/(s+f)*100
-    print('Total earnings = {}'.format(profit))
-    print('Success ratio  = {}'.format(s))
-#     persist_to_store() ## this is for web display 
-    nv.persist_excel_to_store(symbol_data,'store/study/{}.xlsx'.format(name))
-    return symbol_data
-
-print("-------------------- Start of Nirvana-v1.0 ---------------------------")
-
-# screen_from_bhavcopy_and_predict()
-
-study_strategy_for_stock('JBMA_Strat_1_Study',
-                         fetch_data_for_symbol('JBMA') ,
-                         get_signal_using_strategy_1 ,
-                         get_buy_price_strategy_1,
-                         get_sell_price_strategy_1,
-                         process_result_format_1
-                         )
 
 
-# print(bd1)
-# print(st['NO_OF_TRADES_x'])
-# print(st['NO_OF_TRADES_y'])
-# nv.persist_csv_to_store(st,'store/merge.csv')
-print("----------------------------------------------------------")    
+''' Start all your main processing here [for windows]'''
+if __name__ == '__main__':
+    print("-------------------- Start of Nirvana-v1.0 ---------------------------")
+    
+    # screen_from_bhavcopy_and_predict()
+    
+#     with concurrent.futures.ProcessPoolExecutor() as executor:
+#         results = executor.map(study_strategy_for_stock, list_of_stocks)
+    
+    for symbol in list_of_stocks :
+        study_strategy_for_stock(symbol)
+    
+    
+    
+    # print(bd1)
+    # print(st['NO_OF_TRADES_x'])
+    # print(st['NO_OF_TRADES_y'])
+    # nv.persist_csv_to_store(st,'store/merge.csv')
+# print("----------------------------------------------------------")    
 
 print("-------------------- Nirvana Achieved ---------------------------")
 
