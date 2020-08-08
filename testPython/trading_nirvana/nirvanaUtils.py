@@ -6,6 +6,7 @@ import pandas as pd
 from pip._internal import index
 import csv
 import requests
+import time
 
 class CustomError(Exception):
      pass
@@ -24,7 +25,10 @@ def get_data(symbol, from_date = '2016-01-01' ):
     from_date = datetime.strptime (from_date,'%Y-%m-%d')
     to_date = date.today()
 #     print("Fetching data from {} to {}".format(from_date,to_date))
+    start = time.perf_counter()
     data=get_history(symbol=symbol,start=from_date.date(),end=to_date)
+    finish = time.perf_counter()
+    print(f'fetched in {round(finish-start, 2)} second(s)')
     if data.empty :
         raise CustomError("Could not get data")
     data.reset_index(inplace=True)

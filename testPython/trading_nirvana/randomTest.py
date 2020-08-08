@@ -8,6 +8,10 @@ import list_of_all_stocks as lst
 import json
 import numpy as np
 import pandas as pd
+from multiprocessing import Pool    
+import concurrent.futures
+import time
+
 
 from datetime import datetime, date, timedelta
 import dateutil.relativedelta
@@ -19,6 +23,33 @@ LOG_LVL_WARN  = 3
 LOG_LVL_DEBUG = 4
 LOG_LVL_INFO  = 5
 LOG_LEVEL = LOG_LVL_ERROR
+# 
+# list_of_stocks = [ 
+#         'TATAMOTORS',
+#         'RELIANCE',
+#         'BANDHANBNK',
+#         'LAURUSLABS',
+#         'HDFCBANK',
+#         'SBIN',
+#         'ICICIBANK',
+#         'AXISBANK',
+#         'SUNPHARMA',
+#         'UPL',
+#         'CIPLA',
+#         'HDFC',
+#         'KOTAKBANK',
+#         'BPCL',
+#         'INDUSINDBK',
+#         'BAJFINANCE',
+#         'INFY',
+#         'TITAN',
+#         'IBULHSGFIN',
+#         'MARUTI',
+#         'DIVISLAB',
+#         'IDEA',
+#         'DRREDDY',
+#         'TCS',
+#         ]
 
 STOCK_RSI_FLAT_PERIOD = 6
 STOCK_RSI_MAX_STD = 6
@@ -88,7 +119,7 @@ def work_on_data(symbol_data):
 
 
 
-print("-------------------- Start of Nirvana-v1.0 ---------------------------")
+# print("-------------------- Start of Nirvana-v1.0 ---------------------------")
 # symbol_data = fetch_data_from_site(symbol)
 # symbol_data = create_baseline(symbol_data)
 # symbol_data = work_on_data(symbol_data)
@@ -98,9 +129,9 @@ print("-------------------- Start of Nirvana-v1.0 ---------------------------")
 #     'SBIN'
 #     ]
 
-time_taken = []
-time_taken.append(datetime.today())
-for symbol in lst.list_of_stocks :
+
+# for symbol in lst.list_of_stocks :
+def create_db(symbol):
     file_name = 'store/DB/01012016_{}.json'.format(symbol)
     print(file_name)
     try :
@@ -111,14 +142,24 @@ for symbol in lst.list_of_stocks :
         symbol_data['ema200'] = nv.get_td_ema(symbol_data['Close'],200)
         symbol_data['ema50'] = nv.get_td_ema(symbol_data['Close'],50)
         nv.persist_to_store(symbol_data,file_name)
-        time_taken.append(datetime.today())
+#         time_taken.append(datetime.today())
     except :
         print("Oops! Error occurred.")
 
-x = pd.Series(time_taken)
-print(x.diff().sum())
-print(x.diff().mean())
 
+
+''' Start all your main processing here [for windows]'''
+if __name__ == '__main__':
+    print("-------------------- Start of Nirvana-v1.0 ---------------------------")
+    start = time.perf_counter()
+
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        results = executor.map(create_db, lst.list_of_stocks)
+#     for result in results:
+#         print(result)
+    finish = time.perf_counter()
+    print(f'Finished in {round(finish-start, 2)} second(s)')
+    print("-------------------- Nirvana Achieved ---------------------------")
 
 # print ("testing info") if LOG_LEVEL >= LOG_LVL_INFO else ""
 # print ("testing debug") if LOG_LEVEL >= LOG_LVL_DEBUG else ""
@@ -133,7 +174,6 @@ print(x.diff().mean())
 'LICNETFGSC'
 'ONEPOINT'
 'LFIC'
-print("-------------------- Nirvana Achieved ---------------------------")
 
 
             
