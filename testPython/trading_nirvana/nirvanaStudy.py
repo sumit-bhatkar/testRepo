@@ -1,7 +1,9 @@
 import nirvanaUtils as nv
+import list_of_all_stocks as lst
 import json
 import numpy as np
 import pandas as pd
+import xlsxwriter
 
 from datetime import datetime, date, timedelta
 import dateutil.relativedelta
@@ -20,7 +22,7 @@ list_of_stocks = [
 #         'THERMAX',
         'ABB',
         'JUBILANT',
-#         'JBMA',
+        'JBMA',
         ]
 
 STOCK_RSI_FLAT_PERIOD = 4
@@ -33,8 +35,6 @@ EMA_50_THRESHOLD = 10
 TTQ_CHANGE_THRESHOLD = 100
 TO_CHANGE_THRESHOLD = 200
 DEL_PERCENT_THRESHOLD = 20
-
-symbol = 'CAPLIPOINT' 
 
 def validate_stoch_rsi_flat(symbol_data,
                             flat_period = STOCK_RSI_FLAT_PERIOD, 
@@ -104,17 +104,6 @@ def get_signal_using_strategy_1(symbol_data):
 #                                 (symbol_data['deliv_check']) &\
 #                                 (symbol_data['vol_trade_check']) &\
 #                                 (symbol_data['turnover_check'])
-#     print("----------------------------------------------------------")    
-#     print(stoch_ris_passed,ema_200_50_passed,curr_low_passed)
-#     symbol = symbol_data['Symbol'].tail(1).item()
-#     if stoch_ris_passed \
-#         and ema_200_50_passed \
-#         and curr_low_passed :
-#             print ('BUY - {} : Close {} , 3 month Low {}'.format(symbol,symbol_data['Close'].tail(1).item(),lowest_low_value))
-#             return True
-#     else:
-#             print ('DO NOT BUY - {}'.format(symbol))
-#             return False
     return symbol_data
 
 def fetch_data_for_symbol(symbol):
@@ -143,15 +132,12 @@ def screen_strategy_test(st):
             'SBIN'
         ]
 def process_result_format_1(name,symbol_data):
-    print('--------------------------------------------------------------------')
-    profit = symbol_data.loc[365:,['profit']].sum().item()
-    s = symbol_data.loc[365:,['success']].sum().item()
-    f = symbol_data.loc[365:,['fail']].sum().item()
-    sp = s/(s+f)*100
-    print('Total earnings = {}'.format(profit))
-    print('Success ratio  = {}'.format(sp))
-#     persist_to_store() ## this is for web display 
-    nv.persist_excel_to_store(symbol_data,'store/study/{}.xlsx'.format(name))
+#     print('--------------------------------------------------------------------')
+#     print( symbol_data[symbol_data.signal_st1].loc[365:,['flatstokrsi_check','success','fail','profit']].sum())
+    list_to_save =['ABB'
+                   ]
+    if (symbol_data.loc[0,'Symbol'] in list_to_save) :
+        nv.persist_excel_to_store(symbol_data,'store/study/{}.xlsx'.format(name))
     return symbol_data
                              
 def study_strategy_for_stock(symbol, 
@@ -169,10 +155,12 @@ def study_strategy_for_stock(symbol,
     symbol_data['future_max'] = symbol_data['High'].rolling(hold_period, min_periods=1).max().shift(0-hold_period)
     
     def get_profit(row):
-        if row['sale_t'] < row['future_max'] :
+        if row['sale_t'] <= row['future_max']  and row['signal_st1']:
             result = row['sale_t'] - row['buy'] 
-        else :
+        elif row['sale_t'] > row['future_max']  and row['signal_st1']:
             result = row['sale_l'] - row['buy'] 
+        else :
+            result = 0
         return result
     def get_s(row):
         if row['sale_t'] < row['future_max'] :
@@ -184,14 +172,6 @@ def study_strategy_for_stock(symbol,
     symbol_data['success'] = symbol_data.apply(lambda row : get_s(row), axis=1)
     symbol_data['fail'] = symbol_data.apply(lambda row : 0 if get_s(row) == 1 else 1, axis=1)
 
-
-#     if (symbol_data['sale_t'] < max) :
-#         symbol_data['profit']
-#             
-#     symbol_data['profit'] =  if symbol_data['sale_t'] < max
-#     print(symbol_data)
-#     rolling(xx,closed='left') == for future window 
-
     proc_result_func(name,symbol_data)
     return symbol_data
 
@@ -201,16 +181,75 @@ def study_strategy_for_stock(symbol,
 if __name__ == '__main__':
     print("-------------------- Start of Nirvana-v1.0 ---------------------------")
     
-    # screen_from_bhavcopy_and_predict()
-    
+    start = time.perf_counter()
+#     screen_from_bhavcopy_and_predict()
 #     with concurrent.futures.ProcessPoolExecutor() as executor:
 #         results = executor.map(study_strategy_for_stock, list_of_stocks)
+    summary = pd.DataFrame(columns=['Symbol','Signal', 'success','fail',
+                                    'profit','Hit_Rate',
+                                    'flatstokrsi_check',
+                                    'ema50_check','lowest_low_check',
+                                    'vol_trade_check','deliv_check','turnover_check',
+                                    ])
+    summary[['Symbol']] = summary[['Symbol']].astype('string')
+    for symbol in lst.list_of_stocks :
+        try :
+            symbol_data = study_strategy_for_stock(symbol)
+        except Exception as e: 
+            print(e)
+            print("Oops! Error occurred.")
+            continue
+        
+        tail=summary.__len__()
+        summary.at[tail,'Symbol'] = symbol
+        summary.at[tail,'Signal'] \
+            = symbol_data.loc[365:,'signal_st1'].sum()
+        summary.at[tail,'flatstokrsi_check'] \
+            = symbol_data.loc[365:,'flatstokrsi_check'].sum()
+        summary.at[tail,'ema50_check'] \
+            = symbol_data.loc[365:,'ema50_check'].sum()
+        summary.at[tail,'lowest_low_check'] \
+            = symbol_data.loc[365:,'lowest_low_check'].sum()
+        summary.at[tail,'vol_trade_check'] \
+            = symbol_data.loc[365:,'vol_trade_check'].sum()            
+        summary.at[tail,'turnover_check'] \
+            = symbol_data.loc[365:,'turnover_check'].sum()
+        summary.at[tail,'deliv_check'] \
+            = symbol_data.loc[365:,'deliv_check'].sum()                                    
+        summary.at[tail,'profit'] \
+            = symbol_data[symbol_data.signal_st1].loc[365:,'profit'].sum()
+        summary.at[tail,'success'] \
+            = symbol_data[symbol_data.signal_st1].loc[365:,'success'].sum()
+        summary.at[tail,'fail'] \
+            = symbol_data[symbol_data.signal_st1].loc[365:,'fail'].sum()
+        summary.at[tail,'Hit_Rate'] \
+            = summary.at[tail,'success'] / (summary.at[tail,'success'] + summary.at[tail,'fail'] ) 
+
+    writer = pd.ExcelWriter("store/study/Summary_Strategy_1.xlsx",
+                        engine='xlsxwriter',
+                        datetime_format='dd-mm-yy hh:mm:ss',
+                        date_format='dd-mm-yy')
+    summary.to_excel(writer, sheet_name='Summary')
+    # Get the xlsxwriter workbook and worksheet objects.
+    workbook  = writer.book
+    worksheet = writer.sheets['Summary']
     
-    for symbol in list_of_stocks :
-        study_strategy_for_stock(symbol)
+    # Add some cell formats.
+    format1 = workbook.add_format({'num_format': '#,##0.00'})
+    format2 = workbook.add_format({'num_format': '0%'})
     
+    # Set the column width and format.
+    worksheet.set_column('F:F', None, format1)
     
-    
+    # Set the format but not the column width.
+    worksheet.set_column('G:G', None, format2)
+    worksheet.conditional_format('G2:G2000', {'type': '3_color_scale'})
+    worksheet.autofilter('A1:XX1')
+    writer.save()
+#     nv.persist_excel_to_store(summary,'store/study/Summary_Strategy_1.xlsx')
+    print(summary)
+    finish = time.perf_counter()
+    print(f'Finished in {round(finish-start, 2)} second(s)')
     # print(bd1)
     # print(st['NO_OF_TRADES_x'])
     # print(st['NO_OF_TRADES_y'])

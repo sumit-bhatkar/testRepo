@@ -3,7 +3,6 @@ import json
 from nsepy import get_history
 import dateutil.relativedelta
 import pandas as pd
-from pip._internal import index
 import csv
 import requests
 import time
