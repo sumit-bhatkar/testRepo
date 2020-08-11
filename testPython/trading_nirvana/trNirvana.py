@@ -27,6 +27,8 @@ TO_CHANGE_THRESHOLD = 200
 DEL_PERCENT_THRESHOLD = 20
 
 symbol = 'CAPLIPOINT' 
+yesterday='10082020'
+today='11082020'
 #SBIN
 
 
@@ -143,7 +145,7 @@ def nirvana_prediction( list_of_stocks ):
 #     print(x.diff())
     print(x.diff().sum())
     print(summary)
-    nv.persist_excel_to_store(summary,'store/{}.xlsx'.format('signal_summary_10082020'))
+    nv.persist_excel_to_store(summary,f'store/signal_summary_{today}.xlsx')
 
 def store_bhavdata():
     url ="https://archives.nseindia.com/products/content/sec_bhavdata_full_04082020.csv" 
@@ -158,7 +160,7 @@ def store_bhavdata():
 def read_bhavdata():
 #     bd1 = nv.read_store('store/bhav_20200803.txt')
 #     bd2 = nv.read_store('store/bhav_20200804.txt')
-    bd1,bd2 = nv.getBhavdata('07082020','10082020')
+    bd1,bd2 = nv.getBhavdata(yesterday,today)
     return bd1[bd1['SERIES'].str.contains('|'.join(["EQ","BE"]))] , \
         bd2[bd2['SERIES'].str.contains('|'.join(["EQ","BE"]))] 
 
@@ -194,11 +196,8 @@ def screen_from_bhavcopy_and_predict():
 #     st, screened = screen_strategy_test(st)
     st, screened = screen_strategy_1(st)
     print(screened['SYMBOL'])
+    nv.persist_excel_to_store(st,f'store/bhavcopy_screening_{today}.xlsx')
     nirvana_prediction(screened['SYMBOL'])     
-
-def study_strategy_for_stock(symbol, strategy_func):
-    print("Strategy result {}".format(strategy_func(symbol)))
-    return 
 
 print("-------------------- Start of Nirvana-v1.0 ---------------------------")
 # symbol_data = fetch_data_from_site(symbol)
