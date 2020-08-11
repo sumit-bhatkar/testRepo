@@ -73,7 +73,7 @@ def validate_vol_per_trade(symbol_data,
                             max_flat_std = STOCK_RSI_MAX_STD):
     symbol_data['ttq'] = (symbol_data['Volume'] / symbol_data['Trades'])
     symbol_data['ttqold'] = (symbol_data['Volume'].shift(-1) / symbol_data['Trades'].shift(-1))
-    symbol_data['vol_trade_check'] = ((symbol_data['ttq'] - symbol_data['ttqold'])/symbol_data['ttqold'] * 100) > 200
+    symbol_data['vol_trade_check'] = ((symbol_data['ttq'] - symbol_data['ttqold'])/symbol_data['ttqold'] * 100) > 100
 
     return symbol_data['vol_trade_check'].tail(1).item() , symbol_data
 
@@ -136,7 +136,7 @@ def process_result_format_1(name,symbol_data):
 #     print( symbol_data[symbol_data.signal_st1].loc[365:,['flatstokrsi_check','success','fail','profit']].sum())
     list_to_save =['ABB'
                    ]
-    if (symbol_data.loc[0,'Symbol'] in list_to_save) :
+    if (symbol_data.loc[0,'Symbol'] in lst.list_of_100_results) :
         nv.persist_excel_to_store(symbol_data,'store/study/{}.xlsx'.format(name))
     return symbol_data
                              

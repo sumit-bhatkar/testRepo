@@ -7,6 +7,7 @@ import nirvanaUtils as nv
 import json
 import numpy as np
 import pandas as pd
+import nirvanaStudy as sd
 
 from datetime import datetime, date, timedelta
 import dateutil.relativedelta
@@ -94,28 +95,18 @@ def get_signal_using_strategy_1(symbol_data):
             return False
 
 def fetch_data_for_symbol(symbol):
-    ''' 
-    --------------------------------------------------------
-    When reading from store use following
-    --------------------------------------------------------
-    '''
-    store_path = 'store/DB/01012016_{}.json'.format(symbol)
-    symbol_data = nv.read_store(store_path)
-    '''
-    --------------------------------------------------------
-    '''     
-    ''' 
-    --------------------------------------------------------
-    When calculation is not done before use these lines
-    --------------------------------------------------------
-    symbol_data = nv.get_data(symbol
+#     When reading from store use following
+#     store_path = 'store/DB/01012016_{}.json'.format(symbol)
+#     symbol_data = nv.read_store(store_path)
+
+#     When calculation is not done before use these lines
+    symbol_data = nv.get_data(symbol,'2018-01-01')
     nv.populate_heikin_ashi (symbol_data)
     symbol_data["HA_RSI"] = nv.get_exp_rsi(symbol_data["HA_Close"])
     symbol_data["Stoch_rsi_K"] , symbol_data["Stoch_rsi_D"] = nv.get_stoch_rsi(symbol_data["HA_RSI"],3,3,14)
     symbol_data['ema200'] = nv.get_td_ema(symbol_data['Close'],200)
     symbol_data['ema50'] = nv.get_td_ema(symbol_data['Close'],50)
-    --------------------------------------------------------
-    '''  
+
     return symbol_data
 
 def nirvana_prediction( list_of_stocks ):
@@ -128,11 +119,19 @@ def nirvana_prediction( list_of_stocks ):
 #         ]
     time_taken = []
     time_taken.append(datetime.today())
+    summary = pd.DataFrame()
     for symbol in list_of_stocks :
         print('\nChecking for {}'.format(symbol))
         symbol_data = fetch_data_for_symbol(symbol)
-        get_signal_using_strategy_1(symbol_data)
+        symbol_data = sd.get_signal_using_strategy_1(symbol_data)
+        
+        if symbol_data['signal_st1'].tail(1).item():
+            print(f'Buy signal - close {symbol_data.Close.tail(1).item()}')
+        else :
+            print(f'Do not buy {symbol}')
+        
         time_taken.append(datetime.today())
+        summary = summary.append(symbol_data.tail(1), ignore_index=True)
 #         try :
 #             get_signal_using_strategy_1(symbol)
 #             time_taken.append(datetime.today())
@@ -141,8 +140,10 @@ def nirvana_prediction( list_of_stocks ):
 #             print("Oops! Error occurred.")
     
     x = pd.Series(time_taken)
-    print(x.diff())
+#     print(x.diff())
     print(x.diff().sum())
+    print(summary)
+    nv.persist_excel_to_store(summary,'store/{}.xlsx'.format('signal_summary_10082020'))
 
 def store_bhavdata():
     url ="https://archives.nseindia.com/products/content/sec_bhavdata_full_04082020.csv" 
@@ -155,8 +156,9 @@ def store_bhavdata():
     nv.persist_to_store(bd,'store/bhav_20200803.txt')
 
 def read_bhavdata():
-    bd1 = nv.read_store('store/bhav_20200803.txt')
-    bd2 = nv.read_store('store/bhav_20200804.txt')
+#     bd1 = nv.read_store('store/bhav_20200803.txt')
+#     bd2 = nv.read_store('store/bhav_20200804.txt')
+    bd1,bd2 = nv.getBhavdata('07082020','10082020')
     return bd1[bd1['SERIES'].str.contains('|'.join(["EQ","BE"]))] , \
         bd2[bd2['SERIES'].str.contains('|'.join(["EQ","BE"]))] 
 
@@ -189,9 +191,10 @@ def screen_strategy_test(st):
 def screen_from_bhavcopy_and_predict():
     bd1,bd2 = read_bhavdata()
     st = pd.merge(bd1, bd2, how='outer', on=['SYMBOL','SERIES', 'SYMBOL','SERIES'])
-    st, screened = screen_strategy_test(st)
-#     st, screened = screen_strategy_1(st)
-    nirvana_prediction( screened['SYMBOL'] )     
+#     st, screened = screen_strategy_test(st)
+    st, screened = screen_strategy_1(st)
+    print(screened['SYMBOL'])
+    nirvana_prediction(screened['SYMBOL'])     
 
 def study_strategy_for_stock(symbol, strategy_func):
     print("Strategy result {}".format(strategy_func(symbol)))

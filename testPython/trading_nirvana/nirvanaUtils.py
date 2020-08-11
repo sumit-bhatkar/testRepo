@@ -10,14 +10,17 @@ import time
 class CustomError(Exception):
      pass
 
-def getBhavdata():
+def getBhavdata(yest='07082020',today='10082020'):
 #     url ="https://archives.nseindia.com/products/content/sec_bhavdata_full_{}.csv" \
 #     .format(datetime.strftime(datetime.now(),'%d%m%Y'))
-    url ="https://archives.nseindia.com/products/content/sec_bhavdata_full_02062020.csv"
-    bd = pd.read_csv(url)
+    yest_url =f"https://archives.nseindia.com/products/content/sec_bhavdata_full_{yest}.csv"
+    today_url =f"https://archives.nseindia.com/products/content/sec_bhavdata_full_{today}.csv"
+    bd1 = pd.read_csv(yest_url)
+    bd2 = pd.read_csv(today_url)
 #     bd.columns = bd.columns.str.strip()
-    df.rename(columns=lambda x: x.strip())
-    return bd
+    bd1 = bd1.rename(columns=lambda x: x.strip())
+    bd2 = bd2.rename(columns=lambda x: x.strip())
+    return bd1,bd2
 
 def get_data(symbol, from_date = '2016-01-01' ):
 #     print("----------------------------------------------------------")
