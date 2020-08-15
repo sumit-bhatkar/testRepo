@@ -40,7 +40,7 @@ def validate_curr_low(sd,
 
 def validate_delivery_percent(sd,
                             max_flat_std = STOCK_RSI_MAX_STD):
-    sd['deliv_check'] = (sd['%Deliverble'] *100 ) > 30
+    sd['deliv_check'] = (sd['%Deliverble'] ) > 90
     return sd['deliv_check'].tail(1).item() , sd
 
 def validate_vol_per_trade(sd,
@@ -75,6 +75,22 @@ def get_signal_using_strategy_1(sd):
 #                                 (sd['turnover_check'])
     return sd
 
+def get_signal_using_strategy_2(sd):
+    stoch_ris_passed,sd = validate_stoch_rsi_flat(sd)
+    ema_200_50_passed,sd = validate_ema_200_50(sd)
+    curr_low_passed , sd = validate_curr_low(sd)
+    lowest_low_value = sd.lowest_low.tail(1).item()
+    delivery_percent_pass , sd  = validate_delivery_percent(sd)
+    vol_per_trade_pass , sd  = validate_vol_per_trade(sd)
+    turnover_pass , sd  = validate_turnover(sd)
+    
+    sd['signal_st1'] = (sd['stokrsi_check']) |  \
+                                (sd['ema50_check']) | \
+                                (sd['lowest_low_check']) | \
+                                (sd['deliv_check']) | \
+                                (sd['vol_trade_check']) | \
+                                (sd['turnover_check'])
+    return sd
 '''======================================================================================='''
 
 def get_buy_price_strategy_1(sd):

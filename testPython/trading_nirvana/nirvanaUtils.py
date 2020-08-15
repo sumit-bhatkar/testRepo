@@ -114,7 +114,6 @@ def get_td_ema (series,period=14,init_val=0):
             ema.at[i] = alpha * series.at[i] + (1 - alpha) * ema[i-1]
     return ema
     
-    
 def get_ema_for_rsi(series,period=14,init_val=0):
     idx = series.index.name
     ema = pd.Series([],dtype='float64')
