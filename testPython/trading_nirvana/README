@@ -1,0 +1,61 @@
+trNirvana -
+===========
+Input
+	Change following variables - 
+		yesterday='13082020'
+		today='14082020'
+Result
+	- Merged bhavcopy with screening details
+	- Signal summary 
+	
+Process 
+	- reads two bhavcopies from NSE site using ready csv
+	- merges the two bhavcopies  
+	- applies screening strategy 
+	- stores bhavcopy
+	- for screened stocks calls nirvana prediction
+	- stores signal summary
+
+NirvanaStudy -
+==============
+Input
+	Works on the already stored jsons from store from 01-01-2016 to 08-08-2020
+	The processed jsons have ema, stoch_rsi etc calculated
+	The jsons are present in DB folder
+
+The result 
+	Stores every symbol's study in one excel at store/study folder
+	Stores summary at store/study
+
+
+1. Study all symbols :
+	- Use in main block
+		for symbol in lst.list_of_stocks :
+
+2. Study single or few stocks :
+	- Use
+		for symbol in ['KPRMILL','JBMA'] : 
+
+3. To print or save single stock in excel 
+	- Use process_result_format_ 1 or 2
+	- Also set the date range to be printed
+	- Select only reqd columns
+	
+Here is list of all columns -
+	 Date   Symbol Series  Prev Close   Open  High  Low  Last  Close  VWAP  Volume      
+	 Turnover  Trades  Deliverable Volume  %Deliverble  
+	 HA_Close HA_Open HA_High HA_Low HA_RSI  Stoch_rsi_K  Stoch_rsi_D      
+	 ema200  ema50  flatstokrsi_4  stokrsi_check  ema50_99  ema50_check  
+	 lowest_low  lowest_low_check  deliv_check         
+	 ttq  ttqold  vol_trade_check  turnover_check  
+	 signal_st1  buy    sale_t    sale_l  future_max  profit  success  fail
+
+randomTest - [Creates the DB (json) required for study]
+============
+Input
+	Gets data from NSE history using nsepy from 01-01-2016 - for each symbol 
+	Applies HA, stoch, ema functions and creates json
+	
+Result
+	stores the result json in store/DB
+	

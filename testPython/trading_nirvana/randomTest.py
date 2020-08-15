@@ -23,33 +23,6 @@ LOG_LVL_WARN  = 3
 LOG_LVL_DEBUG = 4
 LOG_LVL_INFO  = 5
 LOG_LEVEL = LOG_LVL_ERROR
-# 
-# list_of_stocks = [ 
-#         'TATAMOTORS',
-#         'RELIANCE',
-#         'BANDHANBNK',
-#         'LAURUSLABS',
-#         'HDFCBANK',
-#         'SBIN',
-#         'ICICIBANK',
-#         'AXISBANK',
-#         'SUNPHARMA',
-#         'UPL',
-#         'CIPLA',
-#         'HDFC',
-#         'KOTAKBANK',
-#         'BPCL',
-#         'INDUSINDBK',
-#         'BAJFINANCE',
-#         'INFY',
-#         'TITAN',
-#         'IBULHSGFIN',
-#         'MARUTI',
-#         'DIVISLAB',
-#         'IDEA',
-#         'DRREDDY',
-#         'TCS',
-#         ]
 
 STOCK_RSI_FLAT_PERIOD = 6
 STOCK_RSI_MAX_STD = 6
@@ -165,15 +138,7 @@ if __name__ == '__main__':
 # print ("testing debug") if LOG_LEVEL >= LOG_LVL_DEBUG else ""
 # print ("testing error") if LOG_LEVEL >= LOG_LVL_ERROR else ""
 # print ("testing fatal") if LOG_LEVEL >= LOG_LVL_FATAL else ""
-'MUKTAARTS'
-'SBIETFQLTY'
-'HOVS'
-'JMA'
-'SMARTLINK'
-'ICICI500'
-'LICNETFGSC'
-'ONEPOINT'
-'LFIC'
+
 
 
             

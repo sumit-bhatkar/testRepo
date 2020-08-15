@@ -15,7 +15,9 @@ def getBhavdata(yest='07082020',today='10082020'):
 #     .format(datetime.strftime(datetime.now(),'%d%m%Y'))
     yest_url =f"https://archives.nseindia.com/products/content/sec_bhavdata_full_{yest}.csv"
     today_url =f"https://archives.nseindia.com/products/content/sec_bhavdata_full_{today}.csv"
+    print(f'fetching {yest_url}')
     bd1 = pd.read_csv(yest_url)
+    print(f'fetching {today_url}')
     bd2 = pd.read_csv(today_url)
 #     bd.columns = bd.columns.str.strip()
     bd1 = bd1.rename(columns=lambda x: x.strip())

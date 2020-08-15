@@ -14,18 +14,6 @@ from multiprocessing import Pool
 import concurrent.futures
 import time
 
-list_of_stocks = [ 
-#         'TITAN',
-#         'BEL',
-#         'BANDHANBNK',
-#         'BLUESTARCO',
-#         'AXISBANK',
-        'THERMAX',
-        'KPRMILL',
-        'JUBILANT',
-        'JBMA',
-        ]
-
 def fetch_data_for_symbol(symbol):
     store_path = 'store/DB/01012016_{}.json'.format(symbol)
     sd = nv.read_store(store_path)
@@ -35,12 +23,21 @@ def process_result_format_1(name,sd):
     if (sd.loc[0,'Symbol'] in lst.list_of_100_results) :
         nv.persist_excel_to_store(sd,'store/study/{}.xlsx'.format(name))
     return sd
+
+def process_result_format_2(name,sd):
+#     if (sd.loc[0,'Symbol'] in ['KPRMILL']) :
+#         print(sd[sd.Date.between('2020-05-01', '2020-05-20')])
+    print(sd[sd.Date.between('2020-05-01', '2020-05-20')][
+                                                            {'Date',
+                                                            'Close'}
+                                                            ])
+    return sd
                              
 def study_strategy_for_stock(symbol, 
                              strategy_func = v.get_signal_using_strategy_1, 
                              buy_strat_func = v.get_buy_price_strategy_1, 
                              sale_strat_func = v.get_sell_price_strategy_1, 
-                             proc_result_func = process_result_format_1
+                             proc_result_func = process_result_format_2
                              ):
     hold_period = 90
     name = f'{symbol}_strat_1_study'
@@ -72,7 +69,7 @@ def study_strategy_for_stock(symbol,
     return sd
 
 def write_summary_excel(summary):
-    writer = pd.ExcelWriter("store/study/Summary_Strategy_1.xlsx",
+    writer = pd.ExcelWriter(f"store/study/Summary_Strategy_1_{datetime.strftime(datetime.now(),'%Y%m%d_%H%M%S')}.xlsx",
                         engine='xlsxwriter',
                         datetime_format='dd-mm-yy hh:mm:ss',
                         date_format='dd-mm-yy')
@@ -102,7 +99,7 @@ summary = pd.DataFrame(columns=['Symbol','Signal', 'success','fail',
                                 ])
 summary[['Symbol']] = summary[['Symbol']].astype('string')
 #     for symbol in lst.list_of_stocks :
-for symbol in list_of_stocks :
+for symbol in ['KPRMILL'] :
     try :
         sd = study_strategy_for_stock(symbol)
     except Exception as e: 
@@ -125,6 +122,7 @@ for symbol in list_of_stocks :
     summary.at[tail,'Hit_Rate']         = summary.at[tail,'success'] / (summary.at[tail,'success'] + summary.at[tail,'fail'] ) 
 
 # write_summary_excel(summary)
+print()
 print(summary)
 finish = time.perf_counter()
 print(f'Finished in {round(finish-start, 2)} second(s)')
