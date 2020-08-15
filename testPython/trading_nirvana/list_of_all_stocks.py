@@ -1,4 +1,5 @@
 list_of_100_results = [
+    'KPRMILL',
     'RELIANCE',
     'HDFCBANK',
     'SUNPHARMA',
