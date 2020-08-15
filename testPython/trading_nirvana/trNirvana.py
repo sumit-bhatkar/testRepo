@@ -27,8 +27,8 @@ TO_CHANGE_THRESHOLD = 200
 DEL_PERCENT_THRESHOLD = 20
 
 symbol = 'CAPLIPOINT' 
-yesterday='10082020'
-today='11082020'
+yesterday='12082020'
+today='13082020'
 #SBIN
 
 

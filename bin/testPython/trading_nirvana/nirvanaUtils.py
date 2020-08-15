@@ -61,7 +61,8 @@ def persist_csv_to_store(data_frame, store_path='store/data.csv'):
 def persist_excel_to_store(data_frame, store_path='store/data.xlsx', sheet_name = 'detail'):
     data_frame.to_excel(store_path,
              sheet_name=sheet_name)  
-    print(f"Saved excel file {store_path}")
+    print("Saved excel file")
+    print("----------------------------------------------------------")
 
 
 def populate_heikin_ashi(df,length=0):
